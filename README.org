@@ -1,0 +1,1264 @@
+#+TITLE: Spacemacs-Flavored Literal Configuration
+#+AUTHOR: Rodrigo Gonzalez del Cueto
+#+EMAIL: rdelcueto@gmail.com
+
+* Introduction
+This is a literal Org-mode configuration designed to replicate the mnemonic keybindings of Spacemacs while utilizing a highly granular, domain-driven file tree.
+
+Code blocks in this file are tangled into the `lisp/` directory, and loaded sequentially by `init.el`.
+
+** Inspired by various Emacs configurations:
+- https://github.com/patrl/emacs.d
+- https://github.com/krisbalintona/emacs-config/
+- https://github.com/MrCairo/emacs-config
+- https://github.com/karthink/.emacs.d
+- https://robert.kra.hn/posts/rust-emacs-setup/
+
+* Phase 1: Core, & UI
+
+** Early Initialization (=early-init.el=)
+The =early-init.el= file is loaded before the GUI initializes and before the package system starts. It is critical for stripping visual bloat and deferring garbage collection to achieve sub-second daemon startups.
+
+#+begin_src emacs-lisp :tangle early-init.el
+  ;;; early-init.el --- Early Init File -*- lexical-binding: t; no-byte-compile: t -*-
+
+  ;; Defer garbage collection during startup
+  (setq gc-cons-threshold most-positive-fixnum)
+
+  ;; Disable package.el in favor of Elpaca
+  (setq package-enable-at-startup nil)
+
+  ;; Native-compilation settings
+  (setq native-comp-jit-compilation t
+	native-comp-async-report-warnings-errors 'silent
+	native-comp-async-jobs-number
+	(max 1 (- (string-to-number (string-trim-right (shell-command-to-string "nproc"))) 1)))
+
+  ;; Performance tweaks
+  (setq auto-mode-case-fold nil)
+  (setq-default bidi-display-reordering 'left-to-right
+	        bidi-paragraph-direction 'left-to-right)
+  (setq bidi-inhibit-bpa t)
+  (setq inhibit-compacting-font-caches t)
+  (setq idle-update-delay 1.0)
+
+  ;; PGTK builds timeout optimization
+  (when (boundp 'pgtk-wait-for-event-timeout)
+    (setq pgtk-wait-for-event-timeout 0.001))
+
+  ;; Strip GUI bloat BEFORE frame creation (prevents flashing)
+  (push '(menu-bar-lines . 0) default-frame-alist)
+  (push '(tool-bar-lines . 0) default-frame-alist)
+  (push '(vertical-scroll-bars) default-frame-alist)
+
+  (setq menu-bar-mode nil
+	tool-bar-mode nil
+	scroll-bar-mode nil
+	pixel-scroll-precision-mode t
+	ring-bell-function 'ignore)
+
+  ;; Frame defaults
+  (setq frame-resize-pixelwise t
+	frame-inhibit-implied-resize t
+	frame-title-format '("%b")
+	use-dialog-box t
+	use-file-dialog nil
+	use-short-answers t
+	inhibit-splash-screen t
+	inhibit-startup-screen t
+	inhibit-startup-echo-area-message user-login-name
+	inhibit-startup-buffer-menu t)
+
+  ;; Upgrade built-in packages
+  (setq package-install-upgrade-built-in t)
+#+end_src
+
+** Package Manager & Module Loader (=init.el=)
+The =init.el= file is responsible for bootstrapping the asynchronous =elpaca= package manager, setting up the custom variables file, and loading the domain-driven =lisp/= modules.
+
+#+begin_src emacs-lisp :tangle init.el
+    ;;; init.el --- Personal configuration file -*- lexical-binding: t; no-byte-compile: t; -*-
+  ;; NOTE: init.el is auto-generated from emacs-config.org.
+
+  ;; 1. Setup Custom File (Isolate auto-generated code)
+  (setq custom-file (expand-file-name "custom.el" user-emacs-directory))
+  (when (file-exists-p custom-file)
+    (load custom-file nil t))
+  (setq custom-safe-themes t)
+
+  ;; 2. Bootstrap Elpaca
+  (defvar elpaca-installer-version 0.12)
+  (defvar elpaca-directory (expand-file-name "elpaca/" user-emacs-directory))
+  (defvar elpaca-builds-directory (expand-file-name "builds/" elpaca-directory))
+  (defvar elpaca-sources-directory (expand-file-name "sources/" elpaca-directory))
+  (defvar elpaca-order '(elpaca :repo "https://github.com/progfolio/elpaca.git"
+			      :ref nil :depth 1 :inherit ignore
+			      :files (:defaults "elpaca-test.el" (:exclude "extensions"))
+			      :build (:not elpaca-activate)))
+  (let* ((repo  (expand-file-name "elpaca/" elpaca-sources-directory))
+	 (build (expand-file-name "elpaca/" elpaca-builds-directory))
+	 (order (cdr elpaca-order))
+	 (default-directory repo))
+    (add-to-list 'load-path (if (file-exists-p build) build repo))
+    (unless (file-exists-p repo)
+      (make-directory repo t)
+      (when (<= emacs-major-version 28) (require 'subr-x))
+      (condition-case-unless-debug err
+	(if-let* ((buffer (pop-to-buffer-same-window "*elpaca-bootstrap*"))
+		  ((zerop (apply #'call-process `("git" nil ,buffer t "clone"
+						  ,@(when-let* ((depth (plist-get order :depth)))
+						      (list (format "--depth=%d" depth) "--no-single-branch"))
+						  ,(plist-get order :repo) ,repo))))
+		  ((zerop (call-process "git" nil buffer t "checkout"
+					(or (plist-get order :ref) "--"))))
+		  (emacs (concat invocation-directory invocation-name))
+		  ((zerop (call-process emacs nil buffer nil "-Q" "-L" "." "--batch"
+					"--eval" "(byte-recompile-directory \".\" 0 'force)")))
+		  ((require 'elpaca))
+		  ((elpaca-generate-autoloads "elpaca" repo)))
+	    (progn (message "%s" (buffer-string)) (kill-buffer buffer))
+	  (error "%s" (with-current-buffer buffer (buffer-string))))
+	((error) (warn "%s" err) (delete-directory repo 'recursive))))
+    (unless (require 'elpaca-autoloads nil t)
+      (require 'elpaca)
+      (elpaca-generate-autoloads "elpaca" repo)
+      (let ((load-source-file-function nil)) (load "./elpaca-autoloads"))))
+  (add-hook 'after-init-hook #'elpaca-process-queues)
+  (elpaca `(,@elpaca-order))
+
+  ;; Enable use-package support
+  (elpaca elpaca-use-package
+    (elpaca-use-package-mode)
+    (setq elpaca-use-package-by-default t))
+  (setq use-package-always-ensure t)
+  (elpaca-wait)
+
+  (use-package general
+    :demand t)
+  (elpaca-wait)
+
+  ;; 3. Set Load Path and Require Modules
+  (add-to-list 'load-path (expand-file-name "lisp" user-emacs-directory))
+
+  ;; Phase 1: Core & UI
+  (require 'cfg-core-defaults)
+  (require 'cfg-ui-appearance)
+  (elpaca-wait)
+
+  ;; Phase 2: Evil & Keybinding Engine
+  (require 'cfg-evil-core)
+  (require 'cfg-evil-bindings)
+  (elpaca-wait)
+
+  ;; Phase 3
+  (require 'cfg-nav-minibuffer)
+  (require 'cfg-nav-search)
+  (require 'cfg-nav-projects)
+  (elpaca-wait)
+
+  ;; Phase 4-6: Everything else
+  (require 'cfg-ide-treesit)
+  (require 'cfg-ide-lsp)
+  (require 'cfg-ide-completion)
+  (require 'cfg-ide-tags)
+  (require 'cfg-lang-python)
+  (require 'cfg-lang-rust)
+  (require 'cfg-lang-cc)
+  (require 'cfg-lang-lisp)
+  (require 'cfg-pkm-org)
+  (require 'cfg-pkm-notes)
+  (require 'cfg-pkm-reading)
+  (require 'cfg-tools-git)
+  (require 'cfg-tools-shell)
+  (require 'cfg-tools-dired)
+  (require 'cfg-tools-ai)
+#+end_src
+
+** Core Defaults (=lisp/core-defaults.el=)
+Bare-metal Emacs configurations. Sets up encoding, file backups, and baseline behavior.
+
+#+begin_src emacs-lisp :tangle lisp/cfg-core-defaults.el :mkdirp yes
+   ;;; cfg-core-defaults.el --- Sane Emacs Defaults -*- lexical-binding: t -*-
+  (provide 'cfg-core-defaults)
+
+  (use-package emacs
+    :ensure nil
+    :init
+    ;; Personal Details
+    (setq user-full-name "Rodrigo Gonzalez del Cueto"
+	user-mail-address "rdelcueto@gmail.com")
+
+    ;; UTF-8 Everywhere
+    (set-charset-priority 'unicode)
+    (setq locale-coding-system 'utf-8
+	coding-system-for-read 'utf-8
+	coding-system-for-write 'utf-8
+	default-process-coding-system '(utf-8-unix . utf-8-unix))
+    (set-terminal-coding-system 'utf-8)
+    (set-keyboard-coding-system 'utf-8)
+    (set-selection-coding-system 'utf-8)
+    (prefer-coding-system 'utf-8)
+
+    ;; File Backups & Lockfiles (Keep directories clean)
+    (setq backup-by-copying t
+	create-lockfiles nil
+	delete-by-moving-to-trash t)
+    (setq backup-directory-alist `((".*" . ,(concat user-emacs-directory ".cache/backups")))
+	auto-save-file-name-transforms `((".*" ,(concat user-emacs-directory ".cache/auto-save/") t)))
+
+    ;; Behavior Tweaks
+    (setq enable-recursive-minibuffers t
+	sentence-end-double-space nil
+	indent-tabs-mode nil)
+
+    (defalias 'yes-or-no-p 'y-or-n-p)
+    (global-set-key (kbd "<escape>") 'keyboard-escape-quit)
+
+    ;; Visual Toggles
+    (show-paren-mode t)
+    (global-visual-line-mode t)
+    (setq show-trailing-whitespace t)
+
+    ;; Clean up elisp compilation noise
+    (setq byte-compile-warnings '(not free-vars unresolved noruntime lexical make-local)
+	native-comp-async-report-warnings-errors nil
+	load-prefer-newer t)
+
+    ;; Hide commands in M-x which don't work in the current mode
+    (setq read-extended-command-predicate #'command-completion-default-include-p)
+
+    ;; Native Line Numbers
+    (setq display-line-numbers-type t
+	display-line-numbers-width-start t
+	display-line-numbers-widen nil
+	display-line-numbers-width 4)
+    (global-display-line-numbers-mode 1))
+
+  (add-hook 'elpaca-after-init-hook
+	  (lambda ()
+	    (setq gc-cons-threshold (* 32 1024 1024)) ; 32MB for general use
+	    (setq gc-cons-percentage 0.1)
+	    (message "Elpaca init complete: GC threshold restored to 32MB")))
+#+end_src
+
+** UI Appearance (=lisp/ui-appearance.el=)
+Visual identity: themes, fonts, and modeline.
+
+#+begin_src emacs-lisp :tangle lisp/cfg-ui-appearance.el :mkdirp yes
+  ;;; cfg-ui-appearance.el --- Themes and Fonts -*- lexical-binding: t -*-
+  (provide 'cfg-ui-appearance)
+
+  ;; 1. Fonts Setup
+  (defun rdelcueto/set-fonts-safely (mono-font serif-font symbol-font size)
+    "Attempt to set fonts, gracefully catching errors if they are not installed."
+
+    ;; Monospaced Fonts (Default, Fixed Pitch, and Line Numbers)
+    (condition-case err
+	(progn
+	  (set-face-attribute 'default nil :font (font-spec :family mono-font :size size :weight 'regular))
+	  (set-face-attribute 'fixed-pitch nil :font (font-spec :family mono-font :size size :weight 'regular))
+
+	  (set-face-attribute 'line-number nil :font mono-font)
+	  (set-face-attribute 'line-number-current-line nil
+			      :font mono-font
+			      :background "gray" :foreground "black"))
+      (error (display-warning 'fonts (format "Failed to set monospaced font '%s': %s" mono-font (error-message-string err)) :warning)))
+
+    ;; Variable Pitch (Serif)
+    (condition-case err
+	(set-face-attribute 'variable-pitch nil :font (font-spec :family serif-font :size size :weight 'medium))
+      (error (display-warning 'fonts (format "Failed to set variable-pitch font '%s': %s" serif-font (error-message-string err)) :warning)))
+
+    ;; Symbols (Nerd Font)
+    (condition-case err
+	(progn
+	  (set-fontset-font t 'symbol symbol-font)
+	  (set-fontset-font t 'unicode symbol-font))
+      (error (display-warning 'fonts (format "Failed to set symbol font '%s': %s" symbol-font (error-message-string err)) :warning))))
+
+  (defun rdelcueto/setup-font-erebus ()
+    (rdelcueto/set-fonts-safely "Aporetic Sans Mono" "Aporetic Serif" "JuliaMono Nerd Font" 14.0))
+
+  (defun rdelcueto/setup-font-x201 ()
+    (rdelcueto/set-fonts-safely "Aporetic Sans Mono" "Aporetic Serif" "JuliaMono Nerd Font" 12.0))
+
+  ;; Apply fonts dynamically depending on the machine hostname
+  (when (string= (system-name) "Erebus")
+    (add-hook 'after-init-hook 'rdelcueto/setup-font-erebus)
+    (add-hook 'server-after-make-frame-hook 'rdelcueto/setup-font-erebus))
+
+  (when (string= (system-name) "x201")
+    (add-hook 'after-init-hook 'rdelcueto/setup-font-x201)
+    (add-hook 'server-after-make-frame-hook 'rdelcueto/setup-font-x201))
+
+  ;; 2. Themes
+  (use-package doom-themes
+    :demand t
+    :config
+    (setq doom-themes-enable-bold t
+	    doom-themes-enable-italic t)
+    (doom-themes-visual-bell-config)
+
+    (with-eval-after-load 'org
+      (doom-themes-org-config))
+
+    (load-theme 'doom-solarized-dark t))
+
+  ;; 3. Aesthetics (Solaire Mode)
+  (use-package solaire-mode
+    :demand t
+    :config
+    (solaire-global-mode +1))
+#+end_src
+
+* Phase 2: (Modal Editing & Keys)
+
+** Evil Core (=lisp/evil-core.el=)
+The Vim-emulation layer. This includes the undo system, visual hints, and surrounding text modifications to completely mirror Spacemacs' editing features.
+
+#+begin_src emacs-lisp :tangle lisp/cfg-evil-core.el :mkdirp yes
+  ;;; cfg-cfg-evil-core.el --- Evil Mode and Ecosystem -*- lexical-binding: t -*-
+  (provide 'cfg-evil-core)
+
+  ;; 1. Undo System
+  (use-package undo-fu :demand t)
+  (use-package vundo :defer t)
+
+  ;; 2. Evil Engine
+  (use-package evil
+    :demand t
+    :init
+    ;; Pre-load configurations required by Evil
+    (setq evil-want-integration t
+	evil-want-keybinding nil
+	evil-want-C-u-scroll t
+	evil-want-C-d-scroll t
+	evil-want-C-i-jump nil
+	evil-respect-visual-line-mode nil
+	evil-search-module 'isearch
+	evil-split-window-below t
+	evil-vsplit-window-right t
+	evil-undo-system 'undo-fu)
+    :config
+    (evil-mode 1)
+    (evil-set-initial-state 'messages-buffer-mode 'normal)
+    (evil-set-initial-state 'dashboard-mode 'normal)
+    (evil-set-initial-state 'eshell-mode 'insert)
+    (evil-set-initial-state 'magit-diff-mode 'insert))
+
+  ;; 3. Evil Collection
+  (use-package evil-collection
+    :after evil
+    :demand t
+    :init (setq evil-collection-outline-bind-tab-p t)
+    :config (evil-collection-init))
+
+  ;; 4. Ecosystem
+  (use-package evil-commentary :after evil :config (evil-commentary-mode))
+  (use-package evil-surround :after evil :config (global-evil-surround-mode 1))
+  (use-package evil-goggles :after evil :config (evil-goggles-mode) (evil-goggles-use-diff-faces))
+#+end_src
+
+** Evil Bindings & Leaders (=lisp/evil-bindings.el=)
+This is the nervous system. It configures =general.el= to define the =SPC= and =,= prefixes, and =which-key= to display the Spacemacs-style command discovery popup.
+
+#+begin_src emacs-lisp :tangle lisp/cfg-evil-bindings.el :mkdirp yes
+    ;;; cfg-evil-bindings.el --- General.el and Which-key -*- lexical-binding: t -*-
+  (provide 'cfg-evil-bindings)
+
+  ;; 1. Which Key
+  (use-package which-key
+    :demand t
+    :init
+    (setq which-key-delay 0.4
+	which-key-position 'bottom)
+    :config
+    (which-key-mode)
+    (which-key-setup-minibuffer))
+
+  ;; 2. General.el (Pure Elisp Configuration)
+
+  ;; Enable override mode immediately
+  (general-override-mode 1)
+
+  ;; Unbind annoying Emacs defaults
+  (general-unbind
+    "C-x C-z"    ;; suspend frame
+    "C-x C-d"    ;; list directory
+    "<mouse-2>") ;; pasting with mouse wheel click
+
+  ;; --- CREATE DEFINERS IMMEDIATELY ---
+  ;; These must run right now so that subsequent Lisp files (like cfg-nav-search)
+  ;; can successfully use the `rdelcueto/leader-keys` macro!
+
+  ;; Define the Spacemacs Global Leader (SPC)
+  (general-create-definer rdelcueto/leader-keys
+    :states '(normal visual emacs)
+    :keymaps 'override
+    :prefix "SPC"
+    :global-prefix "M-SPC")
+
+  ;; Define the Spacemacs Local/Major-Mode Leader (,)
+  (general-create-definer rdelcueto/local-leader-keys
+    :states '(normal visual emacs)
+    :keymaps 'override
+    :prefix ","
+    :global-prefix "M-,")
+
+  ;; --- Base Spacemacs Keybindings ---
+
+  (rdelcueto/leader-keys
+    "SPC" '(execute-extended-command :wk "M-x")
+    "TAB" '(alternate-buffer :wk "last buffer")
+    "u"   '(universal-argument :wk "universal prefix"))
+
+  ;; Window Management Prefix (Delegated to evil-window-map)
+  (rdelcueto/leader-keys
+    "w"  '(:keymap evil-window-map :package evil :wk "window"))
+
+  ;; Buffers
+  (rdelcueto/leader-keys
+    "b"  '(:ignore t :wk "buffer")
+    "bb" '(switch-to-buffer :wk "switch buffer")
+    "bk" '(kill-current-buffer :wk "kill this buffer")
+    "br" '(revert-buffer :wk "reload buffer"))
+
+  ;; Files
+  (rdelcueto/leader-keys
+    "f"  '(:ignore t :wk "file")
+    "ff" '(find-file :wk "find file")
+    "fs" '(save-buffer :wk "save file")
+    "fr" '(recentf-open-files :wk "recent files"))
+
+  ;; Quit
+  (rdelcueto/leader-keys
+    "q"  '(:ignore t :wk "quit")
+    "qq" '(delete-frame :wk "kill frame")
+    "qQ" '(kill-emacs :wk "kill emacs"))
+
+  ;; Namespaces initialized for future phases
+  (rdelcueto/leader-keys
+    "s"  '(:ignore t :wk "search")
+    "p"  '(:ignore t :wk "project")
+    "g"  '(:ignore t :wk "git")
+    "c"  '(:ignore t :wk "code")
+    "h"  '(:ignore t :wk "help"))
+
+  ;; --- Handling Setup After Evil is Configured ---
+  ;; Wait for Evil to finish loading before hooking into it and modifying its maps
+  (with-eval-after-load 'evil
+    (general-evil-setup t)
+
+    ;; Exit insert mode easily without stretching for ESC
+    (general-define-key
+     :states 'insert
+     "C-g" 'evil-normal-state)
+
+    ;; Inject Spacemacs window bindings directly into evil-window-map
+    (general-define-key
+     :keymaps 'evil-window-map
+     "d" '(delete-window :wk "delete window")
+     "/" '(split-window-right :wk "split right")
+     "-" '(split-window-below :wk "split below")))
+#+end_src
+
+* Phase 3: The Snappy Interface (Navigation & Search)
+
+** Minibuffer UI (=lisp/nav-minibuffer.el=)
+Replaces Spacemacs' Helm layer. Vertico provides a fast, minimalist vertical interface. Orderless allows fuzzy, space-separated matching. Marginalia adds descriptions (like file sizes or docstrings). Embark acts as a right-click menu for minibuffer items.
+
+#+begin_src emacs-lisp :tangle lisp/cfg-nav-minibuffer.el :mkdirp yes
+  ;;; cfg-nav-minibuffer.el --- Vertico, Orderless, Marginalia, Embark -*- lexical-binding: t -*-
+  (provide 'cfg-nav-minibuffer)
+
+  ;; 1. Vertico (The UI)
+  (use-package vertico
+    :demand t
+    :init
+    (vertico-mode)
+    (vertico-multiform-mode)
+    (setq vertico-cycle t) ;; Wrap around when reaching the end
+    :general
+    (:keymaps 'vertico-map
+	    ;; Vim-style navigation in the minibuffer
+	    "C-j" 'vertico-next
+	    "C-k" 'vertico-previous
+	    "C-f" 'vertico-exit
+	    "<backspace>" 'vertico-directory-delete-char
+	    "C-<backspace>" 'vertico-directory-delete-word
+	    "C-w" 'vertico-directory-delete-word
+	    "RET" 'vertico-directory-enter))
+
+  ;; 2. Savehist (Persist history across Emacs sessions)
+  (use-package savehist
+    :ensure nil
+    :init
+    (savehist-mode))
+
+  ;; 3. Orderless (Fuzzy, space-separated searching)
+  (use-package orderless
+    :demand t
+    :init
+    (setq completion-styles '(orderless basic)
+	completion-category-defaults nil
+	completion-category-overrides '((file (styles partial-completion)))))
+
+  ;; 4. Marginalia (Rich annotations in the minibuffer)
+  (use-package marginalia
+    :after vertico
+    :demand t
+    :custom
+    (marginalia-annotators '(marginalia-annotators-heavy marginalia-annotators-light nil))
+    :init
+    (marginalia-mode))
+
+  ;; 5. Embark (Minibuffer Actions - Think of it as right-click)
+  (use-package embark
+    :demand t
+    :general
+    (rdelcueto/leader-keys
+      "." 'embark-act) ;; Spacemacs-like quick action
+    (:keymaps 'vertico-map
+	    "C-." 'embark-act)
+    :init
+    (setq prefix-help-command #'embark-prefix-help-command)
+    :config
+    ;; Hide the mode line of the Embark live/completions buffers
+    (add-to-list 'display-buffer-alist
+	       '("\\`\\*Embark Collect \\(Live\\|Completions\\)\\*"
+		 nil
+		 (window-parameters (mode-line-format . none)))))
+
+  (use-package embark-consult
+    :after (embark consult)
+    :demand t
+    :hook
+    (embark-collect-mode . consult-preview-at-point-mode))
+#+end_src
+
+** Search & Navigation (=lisp/nav-search.el=)
+Replaces Spacemacs' search functionalities. Maps =consult= functions to the classic Spacemacs =SPC /= and =SPC s= search namespaces.
+
+#+begin_src emacs-lisp :tangle lisp/cfg-nav-search.el :mkdirp yes
+  ;;; cfg-nav-search.el --- Consult & Affe Search -*- lexical-binding: t -*-
+  (provide 'cfg-nav-search)
+
+  ;; 1. Consult (Supercharged search and navigation)
+  (use-package consult
+    :demand t
+    :general
+    (rdelcueto/leader-keys
+      ;; Buffers & Files
+      "bb" '(consult-buffer :wk "consult buffer")
+      "Bb" '(consult-bookmark :wk "consult bookmark")
+      "ff" '(find-file :wk "find file") ;; Handled by Vertico naturally
+
+      ;; Search namespace (Spacemacs style)
+      "/"  '(consult-ripgrep :wk "ripgrep project") ;; The iconic Spacemacs project search
+      "sr" '(consult-ripgrep :wk "consult rg")
+      "sg" '(consult-grep :wk "consult grep")
+      "sG" '(consult-git-grep :wk "consult git grep")
+      "sf" '(consult-find :wk "consult find")
+      "sl" '(consult-line :wk "consult line")
+      "si" '(consult-imenu :wk "consult imenu")
+
+      ;; Kill ring (Clipboard history)
+      "ry" '(consult-yank-from-kill-ring :wk "yank from kill ring")
+      "sy" '(consult-yank-from-kill-ring :wk "consult yank from kill ring")
+
+      ;; Themes
+      "Tt" '(consult-theme :wk "consult theme"))
+    :config
+    ;; Tell Consult to use the built-in project.el for project roots
+    (setq consult-project-root-function
+	(lambda ()
+	  (when-let (project (project-current))
+	    (car (project-roots project))))))
+
+  ;; 2. Affe (Asynchronous Fuzzy Finder - fast ripgrep wrapper)
+  (use-package affe
+    :after orderless
+    :demand t
+    :general
+    (rdelcueto/leader-keys
+      "sa" '(affe-grep :wk "affe grep")
+      "sw" '(affe-find :wk "affe find"))
+    :init
+    (defun affe-orderless-regexp-compiler (input _type _ignorecase)
+      (setq input (orderless-pattern-compiler input))
+      (cons input (lambda (str) (orderless--highlight input str))))
+    :config
+    (setq affe-regexp-compiler #'affe-orderless-regexp-compiler))
+
+  ;; 3. Deadgrep (Fast ripgrep frontend)
+  (use-package deadgrep
+    :defer t
+    :general
+    (rdelcueto/leader-keys
+      "sd" '(deadgrep :wk "deadgrep project")))
+
+  ;; 4. FZF (Fuzzy finder wrapper)
+  (use-package fzf
+    :defer t
+    :general
+    (rdelcueto/leader-keys
+      "sz" '(fzf :wk "fzf search")
+      "fz" '(fzf-find-file :wk "fzf file")))
+#+end_src
+
+** Projects & Workspaces (=lisp/nav-projects.el=)
+Replaces =projectile=, =purpose=, and =persp-mode= with built-in =project.el=, alongside =popper= for popup management and =bufler= for buffer grouping.
+
+#+begin_src emacs-lisp :tangle lisp/cfg-nav-projects.el :mkdirp yes
+  ;;; cfg-nav-projects.el --- Project.el, Popper, Bufler -*- lexical-binding: t -*-
+  (provide 'cfg-nav-projects)
+
+  ;; 1. Project.el (Built-in Projectile replacement)
+  (use-package project
+    :ensure nil
+    :general
+    (rdelcueto/leader-keys
+      "p"  '(:keymap project-prefix-map :wk "project")
+      "pp" '(project-switch-project :wk "switch project")
+      "pf" '(project-find-file :wk "find file in project")
+      "pk" '(project-kill-buffers :wk "kill project buffers")))
+
+  ;; 2. Popper (Tame popup windows like terminals, help, and compilation)
+  (use-package popper
+    :demand t
+    :general
+    (rdelcueto/leader-keys
+      "bp" '(:ignore t :wk "popper")
+      "bpc" '(popper-cycle t :wk "cycle popups")
+      "bpt" '(popper-toggle-latest t :wk "toggle latest popup")
+      "bpb" '(popper-toggle-type t :wk "toggle buffer type")
+      "bpk" '(popper-kill-latest-popup t :wk "kill latest popup"))
+    :init
+    (setq popper-reference-buffers
+	'("\\*Messages\\*"
+	  "Output\\*$"
+	  "\\*helpful.*\\*"
+	  "\\*Async Shell Command\\*"
+	  help-mode
+	  compilation-mode
+	  magit-process-mode
+	  "^\\*eshell.*\\*" eshell-mode
+	  "\\*direnv\\*"
+	  "\\*TeX Help\\*"
+	  "\\*Embark Collect Live\\*"))
+    (popper-mode +1)
+    (popper-echo-mode +1))
+
+  ;; 3. Bufler (Workspace/Buffer grouping like Spacemacs layouts)
+  (use-package bufler
+    :demand t
+    :custom
+    (bufler-workspace-mode t)
+    :general
+    (rdelcueto/leader-keys
+      "bB" '(bufler :wk "bufler group view")
+      "bf" '(bufler-workspace-frame-set :wk "workspace frame set")
+      "bl" '(bufler-list :wk "bufler list"))
+    (:keymaps 'bufler-list-mode-map
+	    :states 'normal
+	    "?" 'hydra:bufler/body
+	    "RET" 'bufler-list-buffer-switch
+	    "SPC" 'bufler-list-buffer-peek
+	    "d" 'bufler-list-buffer-kill))
+#+end_src
+
+* Phase 4: Modern IDE Capabilities
+
+** Tree-sitter (=lisp/ide-treesit.el=)
+Tree-sitter provides vastly superior, non-blocking syntax highlighting based on Abstract Syntax Trees rather than slow regular expressions. =treesit-auto= automatically installs grammars and remaps major modes to their =-ts-mode= variants.
+
+#+begin_src emacs-lisp :tangle lisp/cfg-ide-treesit.el :mkdirp yes
+  ;;; cfg-ide-treesit.el --- Tree-sitter integration -*- lexical-binding: t -*-
+  (provide 'cfg-ide-treesit)
+
+  (use-package treesit-auto
+    :demand t
+    :custom
+    (treesit-auto-install 'prompt) ;; Prompt to install missing grammars
+    :config
+    (treesit-auto-add-to-auto-mode-alist 'all)
+    (global-treesit-auto-mode))
+#+end_src
+
+** Language Server Protocol (=lisp/ide-lsp.el=)
+We replace =lsp-mode= with Emacs' built-in =eglot=. It is significantly lighter and integrates perfectly with Emacs native APIs.
+
+#+begin_src emacs-lisp :tangle lisp/cfg-ide-lsp.el :mkdirp yes
+       ;;; cfg-ide-lsp.el --- Eglot LSP Client -*- lexical-binding: t -*-
+  (provide 'cfg-ide-lsp)
+
+  (use-package eglot
+    :ensure nil
+    :defer t
+    :custom
+    (eglot-send-changes-idle-time 0.1)
+    (eglot-autoshutdown t) ;; Clean up when closing the last buffer of a project
+    :config
+    ;; Integrate Eglot with Orderless for fuzzy completion
+    (setq completion-category-overrides '((eglot (styles orderless))))
+
+    :general
+    ;; Standard Spacemacs LSP bindings under the local leader
+    (rdelcueto/local-leader-keys
+      :keymaps 'eglot-mode-map
+      "l"  '(:ignore t :wk "lsp")
+      "la" '(eglot-code-actions :wk "code actions")
+      "lr" '(eglot-rename :wk "rename symbol")
+      "lf" '(eglot-format :wk "format buffer")
+      "ld" '(eldoc :wk "show documentation")))
+
+  (defun lsp-booster--advice-json-parse (old-fn &rest args)
+    "Try to parse bytecode instead of json."
+    (or
+     (when (equal (following-char) ?#)
+       (let ((bytecode (read (current-buffer))))
+	 (when (byte-code-function-p bytecode)
+	 (funcall bytecode))))
+     (apply old-fn args)))
+  (advice-add (if (progn (require 'json)
+		       (fboundp 'json-parse-buffer))
+		'json-parse-buffer
+	      'json-read)
+	    :around
+	    #'lsp-booster--advice-json-parse)
+
+  (defun lsp-booster--advice-final-command (old-fn cmd &optional test?)
+    "Prepend emacs-lsp-booster command to lsp CMD."
+    (let ((orig-result (funcall old-fn cmd test?)))
+      (if (and (not test?)                             ;; for check lsp-server-present?
+	     (not (file-remote-p default-directory)) ;; see lsp-resolve-final-command, it would add extra shell wrapper
+	     lsp-use-plists
+	     (not (functionp 'json-rpc-connection))  ;; native json-rpc
+	     (executable-find "emacs-lsp-booster"))
+	(progn
+	  (when-let ((command-from-exec-path (executable-find (car orig-result))))  ;; resolve command from exec-path (in case not found in $PATH)
+	    (setcar orig-result command-from-exec-path))
+	  (message "Using emacs-lsp-booster for %s!" orig-result)
+	  (cons "emacs-lsp-booster" orig-result))
+	orig-result)))
+  (advice-add 'lsp-resolve-final-command :around #'lsp-booster--advice-final-command)
+
+  ;; Eglot Booster (Parses JSON via Rust binary for massive speedup)
+  ;; Requires 'emacs-lsp-booster' binary in your PATH.
+  (use-package eglot-booster
+    :elpaca (eglot-booster :host github :repo "jdtsmith/eglot-booster")
+    :after eglot
+    :config (eglot-booster-mode))
+#+end_src
+
+** In-Buffer Completion (=lisp/ide-completion.el=)
+Replaces =company-mode=. Corfu is a minimal, fast UI for =completion-at-point=. Cape provides extra completion backends. Tempel handles snippets.
+
+#+begin_src emacs-lisp :tangle lisp/cfg-ide-completion.el :mkdirp yes
+  ;;; cfg-ide-completion.el --- Corfu, Cape, Tempel -*- lexical-binding: t -*-
+  (provide 'cfg-ide-completion)
+
+  ;; 1. Corfu (The Auto-completion UI)
+  (use-package corfu
+    :demand t
+    :custom
+    (corfu-cycle t)
+    ;; Kept disabled (nil) based on your org config for manual invocation.
+    ;; Change to 't' if you want it to pop up as you type.
+    (corfu-auto nil)
+    ;;(corfu-auto t)
+    ;;(corfu-auto-delay 0.1)
+    ;;(corfu-auto-prefix 2) ;; Trigger after 2 characters
+    :general
+    (:keymaps 'corfu-map
+	    "SPC" 'corfu-insert-separator) ;; Compatibility with orderless
+    :init
+    (global-corfu-mode)
+    (corfu-popupinfo-mode)) ;; Show documentation in a popup next to candidates
+
+  ;; 2. Cape (Completion At Point Extensions)
+  (use-package cape
+    :demand t
+    :general
+    ("M-p p" 'completion-at-point
+     "M-p d" 'cape-dabbrev
+     "M-p f" 'cape-file)
+    :init
+    (add-to-list 'completion-at-point-functions #'cape-file)
+    (add-to-list 'completion-at-point-functions #'cape-dabbrev))
+
+  ;; 3. Tempel (Fast, built-in snippet engine)
+  (use-package tempel
+    :demand t
+    :general
+    ("M-p +" 'tempel-complete)
+    (rdelcueto/leader-keys
+      "ti" '(tempel-insert :wk "tempel insert"))
+    (:keymaps 'tempel-map
+	    "TAB" 'tempel-next)
+    :init
+    (defun tempel-setup-capf ()
+      (add-hook 'completion-at-point-functions #'tempel-expand))
+    (add-hook 'prog-mode-hook 'tempel-setup-capf)
+    (add-hook 'text-mode-hook 'tempel-setup-capf))
+#+end_src
+
+** Code Tags (=lisp/ide-tags.el=)
+This is the modern replacement for =ggtags= and =semantic-mode=. Citre uses Universal Ctags to provide instantaneous, zero-lag code navigation for massive codebases (like C/C++ or Linux kernels) where LSP servers typically choke.
+
+#+begin_src emacs-lisp :tangle lisp/cfg-ide-tags.el :mkdirp yes
+  ;;; cfg-ide-tags.el --- Citre (Universal Ctags Frontend) -*- lexical-binding: t -*-
+  (provide 'cfg-ide-tags)
+
+  (use-package citre
+    :defer t
+    :init
+    ;; Require the citre-config to setup reasonable defaults
+    (require 'citre-config)
+    :general
+    (rdelcueto/local-leader-keys
+      :keymaps 'prog-mode-map
+      "o"  '(:ignore t :wk "citre tags")
+      "oo" '(citre-jump :wk "jump to definition")
+      "op" '(citre-jump-back :wk "jump back")
+      "oi" '(citre-peek :wk "peek definition")
+      "ou" '(citre-update-this-tags-file :wk "update tags file"))
+    :config
+    ;; Ensure Citre doesn't conflict with Eglot if both are active
+    (setq citre-default-create-tags-file-location 'global-cache)
+    (setq citre-use-project-root-when-creating-tags t))
+#+end_src
+
+* Phase 5: Languages & PKM
+
+** Python (=lisp/lang-python.el=)
+#+begin_src emacs-lisp :tangle lisp/cfg-lang-python.el :mkdirp yes
+  ;;; cfg-lang-python.el --- Python support -*- lexical-binding: t -*-
+  (provide 'cfg-lang-python)
+
+  (use-package python
+    :ensure nil
+    :defer t
+    :mode ("\\.py\\'" . python-ts-mode)
+    :hook
+    (python-ts-mode . eglot-ensure) ;; Automatically start LSP
+    :config
+    ;; Setup IPython as the default REPL
+    (when (executable-find "ipython3")
+      (setq python-shell-interpreter "ipython3"
+	  python-shell-interpreter-args "--simple-prompt --classic")))
+#+end_src
+
+** Rust (=lisp/lang-rust.el=)
+#+begin_src emacs-lisp :tangle lisp/cfg-lang-rust.el :mkdirp yes
+  ;;; cfg-lang-rust.el --- Rust support via Rustic -*- lexical-binding: t -*-
+  (provide 'cfg-lang-rust)
+
+  (use-package rustic
+    :defer t
+    :mode ("\\.rs\\'" . rustic-mode)
+    :init
+    ;; Use Eglot instead of lsp-mode
+    (setq rustic-lsp-client 'eglot)
+    :config
+    (setq rustic-rustfmt-args "+nightly"
+	rustic-format-on-save t)
+    :general
+    (rdelcueto/local-leader-keys
+      :keymaps 'rustic-mode-map
+      "c" 'rustic-cargo-build
+      "r" 'rustic-cargo-run
+      "t" 'rustic-cargo-test
+      "f" 'rustic-cargo-fmt))
+#+end_src
+
+** C / C++ / CUDA (=lisp/lang-cc.el=)
+#+begin_src emacs-lisp :tangle lisp/cfg-lang-cc.el :mkdirp yes
+  ;;; cfg-lang-cc.el --- C, C++, and CUDA support -*- lexical-binding: t -*-
+  (provide 'cfg-lang-cc)
+
+  (use-package c-ts-mode
+    :ensure nil
+    :defer t
+    :mode (("\\.c\\'" . c-ts-mode)
+	 ("\\.cpp\\'" . c++-ts-mode)
+	 ("\\.h\\'" . c-ts-mode)
+	 ("\\.hpp\\'" . c++-ts-mode))
+    :hook
+    (c-ts-mode . eglot-ensure)
+    (c++-ts-mode . eglot-ensure)
+    :config
+    (setq c-ts-mode-indent-style 'linux
+	c-ts-mode-indent-offset 4))
+
+  (use-package cuda-mode
+    :defer t
+    :mode "\\.cu\\'")
+#+end_src
+
+** Lisp & Clojure (=lisp/lang-lisp.el=)
+#+begin_src emacs-lisp :tangle lisp/cfg-lang-lisp.el :mkdirp yes
+  ;;; cfg-lang-lisp.el --- Lisp, Clojure, Racket support -*- lexical-binding: t -*-
+  (provide 'cfg-lang-lisp)
+
+  ;; 1. Structural Editing (Lispy & Lispyville)
+  (use-package lispy
+    :defer t
+    :hook
+    (emacs-lisp-mode . lispy-mode)
+    (racket-mode . lispy-mode)
+    (clojure-mode . lispy-mode)
+    :general
+    (:keymaps 'lispy-mode-map
+	    "TAB" 'indent-for-tab-command)) ;; necessary for 'corfu'
+
+  (use-package lispyville
+    :defer t
+    :hook (lispy-mode . lispyville-mode)
+    :general
+    (:keymaps 'lispyville-mode-map
+	    "TAB" 'indent-for-tab-command)
+    :config
+    (lispyville-set-key-theme '(operators c-w additional)))
+
+  ;; 2. Clojure IDE
+  (use-package cider
+    :defer t
+    :general
+    (rdelcueto/local-leader-keys
+      :keymaps 'clojure-mode-map
+      "j" 'cider-jack-in
+      "e" 'cider-eval-defun-at-point))
+
+  ;; 3. Racket
+  (use-package racket-mode
+    :defer t
+    :hook (racket-mode . racket-xp-mode)
+    :general
+    (rdelcueto/local-leader-keys
+      :keymaps 'racket-mode-map
+      "r" '(racket-run-and-switch-to-repl :wk "run")
+      "e" '(racket-eval-last-sexp :wk "eval last sexp")
+      :keymaps 'racket-xp-mode-map
+      "xr" '(racket-xp-rename :wk "rename")))
+#+end_src
+
+** Org Mode (=lisp/pkm-org.el=)
+#+begin_src emacs-lisp :tangle lisp/cfg-pkm-org.el :mkdirp yes
+  ;;; cfg-pkm-org.el --- Org-mode basics and UI -*- lexical-binding: t -*-
+  (provide 'cfg-pkm-org)
+
+  (use-package org
+    :ensure nil
+    :defer t
+    :init
+    ;; Visuals (Recommended by org-modern)
+    (setq org-auto-align-tags nil
+	org-tags-column 0
+	org-catch-invisible-edits 'show-and-error
+	org-hide-emphasis-markers t
+	org-src-fontify-natively t
+	org-highlight-latex-and-related '(native)
+	org-pretty-entities t
+	org-ellipsis "...")
+
+    ;; Agenda styling
+    (setq org-agenda-tags-column 0
+	org-agenda-block-separator ?─
+	org-agenda-time-grid '((daily today require-timed)
+			       (800 1000 1200 1400 1600 1800 2000)
+			       " ┄┄┄┄┄ " "┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄")
+	org-agenda-current-time-string "⭠ now ─────────────────────────────────────────────────")
+
+    ;; Todo Setup
+    (setq org-todo-keywords
+	'((sequence "TODO(t)" "SOMEDAY(s)" "|" "DONE(d)")
+	  (sequence "TO-READ(r)" "READING(R)" "|" "HAVE-READ(d)")
+	  (sequence "PROJ(p)" "|" "COMPLETED(c)")))
+
+    ;; Directories
+    (setq org-directory "~/Org/agenda"
+	org-default-notes-file (concat org-directory "/notes.org"))
+
+    :general
+    (rdelcueto/local-leader-keys
+      :keymaps 'org-mode-map
+      "a" '(org-archive-subtree :wk "archive")
+      "l" '(:ignore t :wk "link")
+      "ll" '(org-insert-link t :wk "link")
+      "lp" '(org-latex-preview t :wk "prev latex")
+      "t" '(org-todo :wk "todo")
+      "s" '(org-insert-structure-template :wk "template")
+      "e" '(org-edit-special :wk "edit")
+      "i" '(:ignore t :wk "insert")
+      "ih" '(org-insert-heading :wk "insert heading")
+      "is" '(org-insert-subheading :wk "insert subheading"))
+
+    :config
+    (set-face-attribute 'org-ellipsis nil :inherit 'default :box nil)
+    (org-babel-do-load-languages
+     'org-babel-load-languages
+     '((plantuml . t)
+       (emacs-lisp . t)
+       (awk . t)
+       (python . t))))
+
+  (use-package org-modern
+    :after org
+    :hook ((org-mode . org-modern-mode)
+	 (org-agenda-finalize . org-modern-agenda)))
+
+  (use-package org-appear
+    :after org
+    :hook (org-mode . org-appear-mode))
+
+  (use-package org-transclusion
+    :after org
+    :general
+    (rdelcueto/leader-keys
+      "nt" '(org-transclusion-mode :wk "transclusion mode")))
+#+end_src
+
+** Knowledge Management (=lisp/pkm-notes.el=)
+#+begin_src emacs-lisp :tangle lisp/cfg-pkm-notes.el :mkdirp yes
+  ;;; cfg-pkm-notes.el --- Denote and Consult-Notes -*- lexical-binding: t -*-
+  (provide 'cfg-pkm-notes)
+
+  ;; 1. Denote
+  (use-package denote
+    :defer t
+    :general
+    (rdelcueto/leader-keys
+      "nd" '(:ignore t :wk "denote")
+      "ndd" '(denote t :wk "denote")
+      "ndr" '(denote-rename-file t :wk "rename file")
+      "ndl" '(denote-link t :wk "link")
+      "ndb" '(denote-backlinks t :wk "backlinks")
+      "ndf" '(denote-sort-dired t :wk "sort dired"))
+    :hook
+    (text-mode . denote-fontify-links-mode-maybe)
+    (dired-mode . denote-dired-mode)
+    :config
+    (setq denote-directory (expand-file-name "~/MEGA/denote/")
+	denote-infer-keywords t
+	denote-sort-keywords t
+	denote-prompts '(title keywords))
+    (denote-rename-buffer-mode 1))
+
+  (use-package denote-journal
+    :after denote
+    :general
+    (rdelcueto/leader-keys
+      "nj" '(:ignore t :wk "journal")
+      "njj" '(denote-journal-new-entry t :wk "new entry")
+      "nje" '(denote-journal-new-or-existing-entry t :wk "new or existing entry")
+      "njl" '(denote-journal-link-or-create-entry t :wk "link or create entry"))
+    :config
+    (setq denote-journal-directory (expand-file-name "journal" denote-directory)))
+
+  ;; 2. Consult Notes
+  (use-package consult-notes
+    :defer t
+    :general
+    (rdelcueto/leader-keys
+      "nn" '(consult-notes t :wk "consult notes"))
+    :config
+    (when (locate-library "denote")
+      (consult-notes-denote-mode))
+    (setq consult-notes-denote-files-function (lambda () (denote-directory-files nil t t))))
+#+end_src
+
+** Reading Tools (=lisp/pkm-reading.el=)
+#+begin_src emacs-lisp :tangle lisp/cfg-pkm-reading.el :mkdirp yes
+  ;;; cfg-pkm-reading.el --- PDF-tools, Nov, Calibredb -*- lexical-binding: t -*-
+  (provide 'cfg-pkm-reading)
+
+  ;; 1. PDF Tools (Installed externally via Nix per your notes)
+  (use-package pdf-tools
+    :defer t
+    :mode ("\\.pdf\\'" . pdf-view-mode)
+    :config
+    (require 'pdf-outline)
+    (require 'pdf-occur)
+    (pdf-tools-install :no-query))
+
+  ;; 2. Nov.el (EPUB Reader)
+  (use-package nov
+    :defer t
+    :mode ("\\.epub\\'" . nov-mode))
+
+  ;; 3. Calibredb
+  (use-package calibredb
+    :defer t
+    :config
+    (setq calibredb-root-dir "/run/media/rdelcueto/SDFS/eLibrary"
+	calibredb-db-dir (expand-file-name "metadata.db" calibredb-root-dir)))
+
+  ;; 4. Org Noter
+  (use-package org-noter
+    :defer t
+    :general
+    (rdelcueto/local-leader-keys
+      :keymaps 'org-noter-doc-mode-map
+      "i" 'org-noter-insert-note)
+    :config
+    (setq org-noter-notes-search-path '("~/Org/")
+	org-noter-default-notes-file-names '("literature-notes.org")
+	org-noter-always-create-frame nil))
+#+end_src
+
+* Phase 6: Tools (Git, Shell, Dired, AI)
+
+** Version Control (=lisp/tools-git.el=)
+Magit is the definitive Git client for Emacs. We also configure Ediff for visual merge conflict resolution.
+
+#+begin_src emacs-lisp :tangle lisp/cfg-tools-git.el :mkdirp yes
+  ;;; cfg-tools-git.el --- Magit and Ediff -*- lexical-binding: t -*-
+  (provide 'cfg-tools-git)
+
+  ;; 1. Magit
+  (use-package transient)
+
+  (use-package magit
+    :after transient
+    :defer t
+    :general
+    (rdelcueto/leader-keys
+      "g"  '(:ignore t :wk "git")
+      "gg" '(magit-status :wk "magit status")
+      "gc" '(magit-commit :wk "magit commit")
+      "gp" '(magit-push :wk "magit push")
+      "gl" '(magit-log :wk "magit log")
+      "gb" '(magit-branch :wk "magit branch"))
+    :config
+    (setq magit-revision-show-gravatars nil
+	git-magit-status-fullscreen t)
+
+    ;; Make Magit status buffer fullscreen
+    (setq magit-display-buffer-function #'magit-display-buffer-fullframe-status-v1))
+
+  ;; 2. Diff Highlight (Replaces git-gutter for better Magit integration)
+  (use-package diff-hl
+    :defer t
+    :hook
+    ((magit-pre-refresh . diff-hl-magit-pre-refresh)
+     (magit-post-refresh . diff-hl-magit-post-refresh)
+     (prog-mode . diff-hl-mode)
+     (org-mode . diff-hl-mode)))
+
+  ;; 3. Ediff (Merge conflicts)
+  (use-package ediff
+    :ensure nil
+    :defer t
+    :config
+    (setq ediff-diff-options "-w" ;; Ignore whitespace
+	ediff-split-window-function 'split-window-horizontally
+	ediff-window-setup-function 'ediff-setup-windows-plain))
+
+  (use-package ztree
+    :ensure nil
+    :defer t
+    :config
+    (setq ztree-diff-additional-options '("-w" "-i")))
+#+end_src
+
+** Shells & Terminal (=lisp/tools-shell.el=)
+#+begin_src emacs-lisp :tangle lisp/cfg-tools-shell.el :mkdirp yes
+  ;;; cfg-tools-shell.el --- Vterm, Eshell, Direnv -*- lexical-binding: t -*-
+  (provide 'cfg-tools-shell)
+
+  ;; 1. Vterm (Fast, compiled terminal emulator)
+  (use-package vterm
+    :defer t
+    :general
+    (rdelcueto/leader-keys
+      "'"  '(vterm :wk "vterm")
+      "ot" '(vterm :wk "vterm"))
+    (:keymaps 'vterm-mode-map
+	    :states 'insert
+	    "C-y" 'vterm-yank
+	    "C-q" 'vterm-send-next-key))
+
+  ;; 2. Eshell (Emacs native shell)
+  (use-package eshell
+    :ensure nil
+    :defer t
+    :general
+    (rdelcueto/leader-keys
+      "oe" '(eshell :wk "eshell")))
+
+  ;; 3. Direnv (Automatic environment variables)
+  (use-package direnv
+    :defer t
+    :hook (prog-mode . direnv-mode))
+#+end_src
+
+** File Management (=lisp/tools-dired.el=)
+Spacemacs configures Dired to behave somewhat like Ranger (using =h= to go up and =l= to go down). We also add =dired-subtree= to expand folders inline.
+
+#+begin_src emacs-lisp :tangle lisp/cfg-tools-dired.el :mkdirp yes
+  ;;; cfg-tools-dired.el --- Dired and Ranger-like navigation -*- lexical-binding: t -*-
+  (provide 'cfg-tools-dired)
+
+  (use-package dired
+    :ensure nil
+    :general
+    (rdelcueto/leader-keys
+      "fd" '(dired :wk "dired")
+      "fj" '(dired-jump :wk "dired jump"))
+    (:keymaps 'dired-mode-map
+	    :states 'normal
+	    "h" 'dired-up-directory
+	    "l" 'dired-find-file
+	    "q" 'kill-current-buffer)
+    :hook
+    (dired-mode . dired-hide-details-mode)
+    :config
+    ;; Update buffers automatically when files change
+    (setq dired-auto-revert-buffer t)
+    ;; Copy/Move between split windows
+    (setq dired-dwim-target t))
+
+  (use-package dired-subtree
+    :defer t
+    :general
+    (:keymaps 'dired-mode-map
+	    :states 'normal
+	    "TAB" 'dired-subtree-toggle))
+
+  (use-package fd-dired
+    :defer t
+    :general
+    (rdelcueto/leader-keys
+      "fD" '(fd-dired :wk "fd dired")))
+#+end_src
+
+** Artificial Intelligence (=lisp/tools-ai.el=)
+Ported exactly from your previous org configuration, hooking into your local Ollama models on =hypatia=.
+
+#+begin_src emacs-lisp :tangle lisp/cfg-tools-ai.el :mkdirp yes
+  ;;; cfg-tools-ai.el --- GPTel and local AI integration -*- lexical-binding: t -*-
+  (provide 'cfg-tools-ai)
+
+  (use-package gptel
+    :defer t
+    :general
+    (rdelcueto/leader-keys
+      "ac" '(gptel :wk "gptel chat")
+      "as" '(gptel-send :wk "gptel send"))
+    :config
+    (setq gptel-model 'nemotron-3-super:120b
+	gptel-backend (gptel-make-ollama "Ollama"
+			:host "hypatia:11434"
+			:stream t
+			:models '(nemotron-3-super:120b
+				  qwen3.5:122b
+				  qwen3-coder-next:q8_0
+				  gpt-oss:120b
+				  translategemma:27b
+				  nemotron-3-nano:30b-a3b-q8_0
+				  qwen3.5:9b
+				  deepseek-ocr:latest
+				  nomic-embed-text-v2-moe:latest
+				  embeddinggemma:latest))))
+#+end_src
