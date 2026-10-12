@@ -1,0 +1,23 @@
+#+TITLE: Structural Lisp Layer
+#+PROPERTY: header-args:emacs-lisp :mkdirp yes :results silent
+
+* Structural Lisp Editing (=lisp/lang-lispy.el=)
+
+#+begin_src emacs-lisp :tangle lisp/lang-lispy.el
+  ;;; lang-lispy.el --- Structural Editing with Lispy & Lispyville -*- lexical-binding: t -*-
+
+  (use-package lispy
+    :defer t
+    :hook
+    (emacs-lisp-mode . lispy-mode)
+    (racket-mode     . lispy-mode)
+    (clojure-mode    . lispy-mode))
+
+  (use-package lispyville
+    :defer t
+    :hook (lispy-mode . lispyville-mode)
+    :config
+    (lispyville-set-key-theme '(operators c-w additional)))
+
+  (provide 'lang-lispy)
+#+end_src

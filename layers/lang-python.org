@@ -1,0 +1,20 @@
+#+TITLE: Python Language Layer
+#+PROPERTY: header-args:emacs-lisp :mkdirp yes :results silent
+
+* Python (=lisp/lang-python.el=)
+
+#+begin_src emacs-lisp :tangle lisp/lang-python.el
+  ;;; lang-python.el --- Python Mode and REPL -*- lexical-binding: t -*-
+
+  (use-package python
+    :ensure nil
+    :defer t
+    :mode ("\\.py\\'" . python-mode)
+    :hook (python-mode . eglot-ensure)
+    :config
+    (when (executable-find "ipython3")
+      (setq python-shell-interpreter "ipython3"
+            python-shell-interpreter-args "--simple-prompt --classic")))
+
+  (provide 'lang-python)
+#+end_src

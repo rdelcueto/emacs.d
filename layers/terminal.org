@@ -1,0 +1,64 @@
+#+TITLE: Terminal Layer
+#+PROPERTY: header-args:emacs-lisp :mkdirp yes :results silent
+
+* Terminals & Shells (=lisp/mod-terminal.el=)
+
+#+begin_src emacs-lisp :tangle lisp/mod-terminal.el
+  ;;; mod-terminal.el --- Ghostel Terminal Emulator -*- lexical-binding: t -*-
+
+  (use-package ghostel
+    :custom
+    (ghostel-max-scrollback (* 1024 1024))
+    (ghostel-module-auto-install 'download)
+    :config
+    (add-to-list 'project-switch-commands '(ghostel-project "Ghostel") t)
+
+    ;; Ensure installation and module provisioning helpers are loaded
+    (require 'ghostel-module-install nil t)
+    (defalias 'ghostel-compile-module #'ghostel-module-compile)
+
+    ;; Post-installation native module setup:
+    ;; Option 1: Download pre-built native module from GitHub releases
+    (when (and (fboundp 'ghostel-download-module)
+               (fboundp 'ghostel--module-directory)
+               (not (file-exists-p (expand-file-name (concat "ghostel-module" module-file-suffix)
+                                                     (ghostel--module-directory)))))
+      (ghostel-download-module))
+
+    ;; Option 2: Compile native module from source via Zig
+    ;; (when (and (fboundp 'ghostel-compile-module)
+    ;;            (fboundp 'ghostel--module-directory)
+    ;;            (not (file-exists-p (expand-file-name (concat "ghostel-module" module-file-suffix)
+    ;;                                                  (ghostel--module-directory)))))
+    ;;   (ghostel-compile-module))
+    )
+
+  (use-package evil-ghostel
+    :after (ghostel evil)
+    :hook (ghostel-mode . evil-ghostel-mode)
+    :custom
+    (evil-ghostel-escape 'terminal))
+
+  (use-package ghostel-compile
+    :ensure nil
+    :after ghostel
+    :config
+    (ghostel-compile-global-mode 1))
+
+  (use-package ghostel-eshell
+    :ensure nil
+    :after ghostel
+    :hook (eshell-load . ghostel-eshell-visual-command-mode))
+
+  (use-package ghostel-comint
+    :ensure nil
+    :after ghostel
+    :hook (shell-mode . ghostel-comint-mode))
+
+  (use-package consult-ghostel
+    :ensure (consult-ghostel :fetcher github :repo "dakra/ghostel"
+                             :files ("extensions/consult-ghostel/consult-ghostel.el"))
+    :after (ghostel consult))
+
+  (provide 'mod-terminal)
+#+end_src

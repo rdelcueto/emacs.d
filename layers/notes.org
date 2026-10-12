@@ -1,0 +1,33 @@
+#+TITLE: Notes Layer
+#+PROPERTY: header-args:emacs-lisp :mkdirp yes :results silent
+
+* Knowledge Management & Notes (=lisp/mod-notes.el=)
+
+#+begin_src emacs-lisp :tangle lisp/mod-notes.el
+  ;;; mod-notes.el --- Denote & Note-taking -*- lexical-binding: t -*-
+
+  (use-package denote
+    :defer t
+    :hook
+    (text-mode . denote-fontify-links-mode-maybe)
+    (dired-mode . denote-dired-mode)
+    :config
+    (setq denote-directory (expand-file-name "~/denote/")
+          denote-infer-keywords t
+          denote-sort-keywords t
+          denote-prompts '(title keywords))
+    (denote-rename-buffer-mode 1))
+
+  (use-package denote-journal
+    :after denote
+    :config
+    (setq denote-journal-directory (expand-file-name "journal" denote-directory)))
+
+  (use-package consult-notes
+    :defer t
+    :config
+    (consult-notes-denote-mode 1)
+    (setq consult-notes-denote-files-function (lambda () (denote-directory-files nil t t))))
+
+  (provide 'mod-notes)
+#+end_src

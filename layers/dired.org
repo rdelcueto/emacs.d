@@ -1,0 +1,22 @@
+#+TITLE: Dired Layer
+#+PROPERTY: header-args:emacs-lisp :mkdirp yes :results silent
+
+* Dired Enhancements (=lisp/mod-dired.el=)
+
+#+begin_src emacs-lisp :tangle lisp/mod-dired.el
+  ;;; mod-dired.el --- Dired File Management -*- lexical-binding: t -*-
+
+  (use-package dired
+    :ensure nil
+    :hook (dired-mode . dired-hide-details-mode)
+    :config
+    (setq dired-auto-revert-buffer t
+          dired-kill-when-opening-new-dired-buffer t
+          dired-dwim-target t))
+
+  (use-package dired-subtree :defer t)
+
+  (use-package fd-dired :defer t)
+
+  (provide 'mod-dired)
+#+end_src

@@ -1,0 +1,21 @@
+#+TITLE: Tree-sitter Environment Layer
+#+PROPERTY: header-args:emacs-lisp :mkdirp yes :results silent
+
+* Tree-sitter Environment (=lisp/mod-treesit.el=)
+
+#+begin_src emacs-lisp :tangle lisp/mod-treesit.el
+  ;;; mod-treesit.el --- Tree-sitter Environment -*- lexical-binding: t -*-
+
+  (use-package treesit-env
+    :vc (:url "https://github.com/cottontailia/treesit-env")
+    :custom
+    (treesit-env-default-revision-auto t)
+    (treesit-env-abi-max 14)
+    :config
+    (treesit-env python rust c cpp bash make json toml yaml)
+    (when (eq system-type 'windows-nt)
+      (setq treesit-env-compiler-cc '("zig" "cc" "-O3")
+            treesit-env-compiler-c++ '("zig" "c++" "-O3"))))
+
+  (provide 'mod-treesit)
+#+end_src

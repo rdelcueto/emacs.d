@@ -1,0 +1,37 @@
+#+TITLE: Version Control Layer
+#+PROPERTY: header-args:emacs-lisp :mkdirp yes :results silent
+
+* Version Control (=lisp/mod-git.el=)
+
+#+begin_src emacs-lisp :tangle lisp/mod-git.el
+  ;;; mod-git.el --- Magit, Diff, & Git Tools -*- lexical-binding: t -*-
+
+  ;; Transient is already upgraded and shadowed in init.el
+  (use-package magit
+    :defer t
+    :config
+    (setq magit-revision-show-gravatars nil
+          magit-display-buffer-function #'magit-display-buffer-fullframe-status-v1))
+
+  (use-package diff-hl
+    :defer t
+    :hook
+    ((magit-pre-refresh  . diff-hl-magit-pre-refresh)
+     (magit-post-refresh . diff-hl-magit-post-refresh)
+     (prog-mode          . diff-hl-mode)
+     (org-mode           . diff-hl-mode)))
+
+  (use-package ediff
+    :ensure nil
+    :defer t
+    :config
+    (setq ediff-diff-options "-w"
+          ediff-split-window-function 'split-window-horizontally
+          ediff-window-setup-function 'ediff-setup-windows-plain))
+
+  (use-package ztree
+    :defer t
+    :config (setq ztree-diff-additional-options '("-w" "-i")))
+
+  (provide 'mod-git)
+#+end_src

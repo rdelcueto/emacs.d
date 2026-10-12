@@ -1,0 +1,33 @@
+#+TITLE: Completion Layer
+#+PROPERTY: header-args:emacs-lisp :mkdirp yes :results silent
+
+* In-Buffer Completion (=lisp/mod-completion.el=)
+
+#+begin_src emacs-lisp :tangle lisp/mod-completion.el
+  ;;; mod-completion.el --- In-buffer completion (Corfu, Cape, Tempel) -*- lexical-binding: t -*-
+
+  (use-package corfu
+    :demand t
+    :custom
+    (corfu-cycle t)
+    (corfu-auto nil) ; Manual invocation
+    :init
+    (global-corfu-mode 1)
+    (corfu-popupinfo-mode 1))
+
+  (use-package cape
+    :demand t
+    :init
+    (add-to-list 'completion-at-point-functions #'cape-file)
+    (add-to-list 'completion-at-point-functions #'cape-dabbrev))
+
+  (use-package tempel
+    :demand t
+    :init
+    (defun completion-tempel-setup-capf ()
+      (add-hook 'completion-at-point-functions #'tempel-expand nil t))
+    (add-hook 'prog-mode-hook #'completion-tempel-setup-capf)
+    (add-hook 'text-mode-hook #'completion-tempel-setup-capf))
+
+  (provide 'mod-completion)
+#+end_src

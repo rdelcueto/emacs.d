@@ -1,0 +1,17 @@
+#+TITLE: Citre Layer
+#+PROPERTY: header-args:emacs-lisp :mkdirp yes :results silent
+
+* Citre Semantic Tags (=lisp/mod-citre.el=)
+
+#+begin_src emacs-lisp :tangle lisp/mod-citre.el
+  ;;; mod-citre.el --- Citre Ctags Frontend -*- lexical-binding: t -*-
+
+  (use-package citre
+    :defer t
+    :init (require 'citre-config)
+    :config
+    (setq citre-default-create-tags-file-location 'global-cache
+          citre-use-project-root-when-creating-tags t))
+
+  (provide 'mod-citre)
+#+end_src

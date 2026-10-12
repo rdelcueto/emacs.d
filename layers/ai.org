@@ -1,0 +1,31 @@
+#+TITLE: AI & LLM Layer
+#+PROPERTY: header-args:emacs-lisp :mkdirp yes :results silent
+
+* LLM & AI Integration (=lisp/mod-ai.el=)
+
+#+begin_src emacs-lisp :tangle lisp/mod-ai.el
+  ;;; mod-ai.el --- AI and LLM Integration -*- lexical-binding: t -*-
+
+  (use-package mcp :defer t)
+
+  (use-package gptel
+    :defer t
+    :config
+    (setq-default gptel-model 'Gemma-4-E4B-it-GGUF
+                  gptel-backend (gptel-make-openai "lemonade"
+                                  :host "hypatia:13305"
+                                  :stream t
+                                  :protocol "http"
+                                  :key "dummy"
+                                  :models '(Gemma-4-E4B-it-GGUF
+                                            DeepSeek-V4-Flash-IQ2XXS-DS4))))
+
+  ;; Agentic harness on top of gptel
+  (with-eval-after-load 'gptel
+    (setq gptel-agent-tools-dir (expand-file-name "var/gptel-tools/" user-emacs-directory))
+    (let ((agent-init (expand-file-name "~/src/repos/gptel-agent-kit/init.el")))
+      (when (file-exists-p agent-init)
+        (load agent-init))))
+
+  (provide 'mod-ai)
+#+end_src

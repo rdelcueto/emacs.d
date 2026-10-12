@@ -1,0 +1,330 @@
+#+TITLE: Local Machine Configuration Template
+#+PROPERTY: header-args:emacs-lisp :mkdirp yes :results silent
+
+* Instructions
+Copy or symlink this file to =local-config.org= to customize your local machine configuration.
+=local-config.org= is consumed by =README.org= and is not tracked by Git, allowing
+host-specific layer selections, paths, and secrets.
+
+* Pluggable Feature Modules
+All feature modules are opt-in. Comment out any module below to prevent loading:
+
+#+begin_src emacs-lisp :tangle init.el
+  ;; 6. Pluggable Feature Modules (Host Selection)
+  (defvar active-modules
+    '(mod-git          ; Magit, Diff-hl, Ediff, Ztree
+      mod-treesit      ; Treesit-env
+      mod-lsp          ; Eglot
+      mod-completion   ; Corfu, Cape, Tempel
+      mod-citre        ; Citre
+      lang-python      ; Python, IPython
+      lang-rust        ; Rustic, Cargo
+      lang-c-cpp       ; C/C++, CUDA
+      lang-clojure     ; Cider
+      lang-racket      ; Racket-mode
+      lang-lispy       ; Lispy, Lispyville
+      mod-org          ; Org-mode, Org-modern, Agenda, Transclusion
+      mod-notes        ; Denote, Journal, Consult-notes
+      mod-terminal     ; Ghostel
+      mod-dired        ; Dired, Dired-subtree, fd-dired
+      mod-reading      ; PDF/EPUB, Calibre, Org-noter, Asciidoc
+      mod-ai)          ; LLMs (GPTel), MCP
+    "List of active feature modules to load on this host.")
+
+  (defvaralias 'rdelcueto/active-modules 'active-modules)
+
+  (dolist (mod active-modules)
+    (require mod nil t))
+
+  ;; 7. Host & Environment Overrides
+  (require 'local-overrides nil t)
+  (let ((local-file (expand-file-name "local.el" user-emacs-directory)))
+    (when (file-exists-p local-file)
+      (load local-file nil t)))
+#+end_src
+
+* Active Layers
+Comment out any layer you do not wish to tangle on this machine:
+
+#+INCLUDE: "layers/git.org"
+#+INCLUDE: "layers/ide-treesit.org"
+#+INCLUDE: "layers/ide-lsp.org"
+#+INCLUDE: "layers/ide-completion.org"
+#+INCLUDE: "layers/ide-citre.org"
+#+INCLUDE: "layers/lang-python.org"
+#+INCLUDE: "layers/lang-rust.org"
+#+INCLUDE: "layers/lang-c-cpp.org"
+#+INCLUDE: "layers/lang-clojure.org"
+#+INCLUDE: "layers/lang-racket.org"
+#+INCLUDE: "layers/lang-lispy.org"
+#+INCLUDE: "layers/org.org"
+#+INCLUDE: "layers/notes.org"
+#+INCLUDE: "layers/terminal.org"
+#+INCLUDE: "layers/dired.org"
+#+INCLUDE: "layers/reading.org"
+#+INCLUDE: "layers/ai.org"
+
+* Host UI & Environment Overrides (=lisp/local-overrides.el=)
+Machine-specific typography profiles, identities, paths, and user keybindings:
+
+#+begin_src emacs-lisp :tangle lisp/local-overrides.el
+  ;;; local-overrides.el --- Host-specific overrides -*- lexical-binding: t -*-
+
+  ;; ---------------------------------------------------------------------------
+  ;; 1. Machine Typography Profiles
+  ;; ---------------------------------------------------------------------------
+  (setq core-ui-host-profiles
+        '(("Erebus" . (:font-size 12.0
+                       :mono-font "Aporetic Sans Mono"
+                       :serif-font "Aporetic Serif"
+                       :symbol-font "JuliaMono Nerd Font"))
+          ("x201"   . (:font-size 12.0
+                       :mono-font "Aporetic Sans Mono"
+                       :serif-font "Aporetic Serif"
+                       :symbol-font "JuliaMono Nerd Font"))
+          (t        . (:font-size 12.0
+                       :mono-font "monospace"
+                       :serif-font "serif"
+                       :symbol-font nil))))
+
+  ;; Apply current host font to default-frame-alist
+  (when-let* ((profile (core-ui-current-profile))
+              (mono (plist-get profile :mono-font))
+              (size (plist-get profile :font-size)))
+    (setf (alist-get 'font default-frame-alist) (format "%s-%s" mono size)))
+
+  ;; ---------------------------------------------------------------------------
+  ;; 2. User UI Override Hooks
+  ;; ---------------------------------------------------------------------------
+  ;; (add-hook 'core-ui-graphic-frame-hook (lambda (frame) nil))
+  ;; (add-hook 'core-ui-terminal-frame-hook (lambda (frame) nil))
+
+  ;; ---------------------------------------------------------------------------
+  ;; 3. Identity & User Defaults
+  ;; ---------------------------------------------------------------------------
+  (setq user-full-name "Rodrigo Gonzalez del Cueto"
+        user-mail-address "rdelcueto@gmail.com")
+
+  ;; Backward-compatibility definer aliases
+  (defalias 'rdelcueto/leader-keys 'leader-keys)
+  (defalias 'rdelcueto/local-leader-keys 'local-leader-keys)
+
+  ;; ---------------------------------------------------------------------------
+  ;; 4. Paths & Service Overrides
+  ;; ---------------------------------------------------------------------------
+  (setq calibredb-root-dir "/run/media/rdelcueto/SDFS/eLibrary"
+        calibredb-db-dir (expand-file-name "metadata.db" calibredb-root-dir))
+
+  ;; ---------------------------------------------------------------------------
+  ;; 5. User Keybinding Overrides
+  ;; ---------------------------------------------------------------------------
+
+  ;; 5.1 Baseline Navigation Keys (Global Leader)
+  (leader-keys
+    "SPC" '(execute-extended-command :wk "M-x")
+    "TAB" '(alternate-buffer :wk "last buffer")
+    "u"   '(universal-argument :wk "universal prefix")
+
+    ;; Windows
+    "w"   '(:keymap evil-window-map :package evil :wk "window")
+
+    ;; Buffers
+    "b"   '(:ignore t :wk "buffer")
+    "bb"  '(switch-to-buffer :wk "switch buffer")
+    "bk"  '(kill-current-buffer :wk "kill buffer")
+    "br"  '(revert-buffer :wk "revert buffer")
+
+    ;; Files
+    "f"   '(:ignore t :wk "file")
+    "fr"  '(recentf :wk "find recent file")
+    "ff"  '(find-file :wk "find file")
+
+    ;; Quit
+    "q"   '(:ignore t :wk "quit")
+    "qq"  '(delete-frame :wk "kill frame")
+    "qQ"  '(kill-emacs :wk "kill emacs"))
+
+  ;; 5.2 Modal & Window Shortcuts
+  (general-define-key
+   :keymaps 'evil-window-map
+   "d" '(delete-window :wk "delete window")
+   "/" '(split-window-right :wk "split right")
+   "-" '(split-window-below :wk "split below"))
+
+  (general-define-key
+   :states 'insert
+   "C-g" 'evil-normal-state)
+
+  ;; 5.3 Navigation & Search Suite (mod-nav)
+  ;; Embark
+  (leader-keys "." 'embark-act)
+  (general-define-key :keymaps 'vertico-map "C-." 'embark-act)
+
+  ;; Consult
+  (leader-keys
+    "bb" '(consult-buffer :wk "consult buffer")
+    "Bb" '(consult-bookmark :wk "consult bookmark")
+    "/"  '(consult-ripgrep :wk "ripgrep project")
+    "sr" '(consult-ripgrep :wk "consult rg")
+    "sg" '(consult-grep :wk "consult grep")
+    "sf" '(consult-find :wk "consult find")
+    "sl" '(consult-line :wk "consult line")
+    "si" '(consult-imenu :wk "consult imenu")
+    "sy" '(consult-yank-from-kill-ring :wk "yank ring")
+    "Tt" '(consult-theme :wk "consult theme"))
+
+  ;; Affe, Deadgrep, Fzf
+  (leader-keys
+    "sa" '(affe-grep :wk "affe grep")
+    "sw" '(affe-find :wk "affe find")
+    "sd" '(deadgrep :wk "deadgrep")
+    "sz" '(fzf :wk "fzf search")
+    "fz" '(fzf-find-file :wk "fzf file"))
+
+  ;; Avy
+  (leader-keys
+    "j"  '(:ignore t :wk "jump")
+    "jj" '(avy-goto-char-timer :wk "jump char")
+    "jl" '(avy-goto-line :wk "jump line")
+    "jw" '(avy-goto-word-1 :wk "jump word")
+    "jb" '(avy-pop-mark :wk "jump back"))
+
+  ;; Project
+  (leader-keys
+    "p"  '(:keymap project-prefix-map :wk "project")
+    "pp" '(project-switch-project :wk "switch project")
+    "pf" '(project-find-file :wk "find file in project")
+    "pk" '(project-kill-buffers :wk "kill project buffers"))
+
+  ;; Popper & Bufler
+  (leader-keys
+    "bp"  '(:ignore t :wk "popper")
+    "bpc" '(popper-cycle t :wk "cycle popups")
+    "bpt" '(popper-toggle-latest t :wk "toggle latest popup")
+    "bpk" '(popper-kill-latest-popup t :wk "kill latest popup")
+    "bB"  '(bufler :wk "bufler group view")
+    "bl"  '(bufler-list :wk "bufler list"))
+
+  ;; 5.4 Version Control (mod-git)
+  (leader-keys
+    "g"  '(:ignore t :wk "git")
+    "gg" '(magit-status :wk "status")
+    "gc" '(magit-commit :wk "commit")
+    "gp" '(magit-push :wk "push")
+    "gl" '(magit-log :wk "log")
+    "gB" '(magit-branch :wk "branch")
+    "gb" '(magit-blame-addition :wk "blame"))
+
+  ;; 5.5 Completion (mod-completion)
+  (general-define-key :keymaps 'corfu-map "SPC" 'corfu-insert-separator)
+  (general-define-key
+   "M-p p" 'completion-at-point
+   "M-p d" 'cape-dabbrev
+   "M-p f" 'cape-file
+   "M-p +" 'tempel-complete)
+  (leader-keys "ti" '(tempel-insert :wk "tempel insert"))
+  (general-define-key :keymaps 'tempel-map "TAB" 'tempel-next)
+
+  ;; 5.6 LSP & Tags (mod-lsp, mod-citre)
+  (local-leader-keys
+    :keymaps 'eglot-mode-map
+    "l"  '(:ignore t :wk "lsp")
+    "la" '(eglot-code-actions :wk "code actions")
+    "lr" '(eglot-rename :wk "rename")
+    "lf" '(eglot-format :wk "format")
+    "ld" '(eldoc :wk "doc"))
+
+  (local-leader-keys
+    :keymaps 'prog-mode-map
+    "c"  '(:ignore t :wk "citre tags")
+    "cj" '(citre-jump :wk "jump")
+    "cr" '(citre-jump-to-reference :wk "reference")
+    "cJ" '(citre-jump-back :wk "jump back")
+    "cp" '(citre-peek :wk "peek")
+    "cu" '(citre-update-this-tags-file :wk "update tags"))
+
+  ;; 5.7 Languages
+  ;; Rust
+  (local-leader-keys
+    :keymaps 'rustic-mode-map
+    "c" 'rustic-cargo-build
+    "r" 'rustic-cargo-run
+    "t" 'rustic-cargo-test
+    "f" 'rustic-cargo-fmt)
+
+  ;; Clojure
+  (local-leader-keys
+    :keymaps 'clojure-mode-map
+    "j" 'cider-jack-in
+    "e" 'cider-eval-defun-at-point)
+
+  ;; Racket
+  (local-leader-keys
+    :keymaps 'racket-mode-map
+    "r" '(racket-run-and-switch-to-repl :wk "run")
+    "e" '(racket-eval-last-sexp :wk "eval"))
+
+  ;; Lispy
+  (general-define-key :keymaps 'lispy-mode-map "TAB" 'indent-for-tab-command)
+
+  ;; 5.8 Org & Notes (mod-org, mod-notes)
+  (local-leader-keys
+    :keymaps 'org-mode-map
+    "a"  '(org-archive-subtree :wk "archive")
+    "l"  '(:ignore t :wk "link")
+    "ll" '(org-insert-link t :wk "insert link")
+    "lp" '(org-latex-preview t :wk "preview latex")
+    "t"  '(org-todo :wk "todo state")
+    "s"  '(org-insert-structure-template :wk "template")
+    "e"  '(org-edit-special :wk "edit special")
+    "i"  '(:ignore t :wk "insert")
+    "ih" '(org-insert-heading :wk "heading")
+    "is" '(org-insert-subheading :wk "subheading"))
+
+  (leader-keys
+    "nt"  '(org-transclusion-mode :wk "transclusion")
+    "nd"  '(:ignore t :wk "denote")
+    "ndd" '(denote :wk "new note")
+    "ndr" '(denote-rename-file :wk "rename file")
+    "ndl" '(denote-link :wk "link")
+    "ndb" '(denote-backlinks :wk "backlinks")
+    "ndf" '(denote-sort-dired :wk "sort dired")
+    "nj"  '(:ignore t :wk "journal")
+    "njj" '(denote-journal-new-entry :wk "new entry")
+    "nje" '(denote-journal-new-or-existing-entry :wk "find entry")
+    "njl" '(denote-journal-link-or-create-entry :wk "link entry")
+    "nn"  '(consult-notes :wk "consult notes"))
+
+  ;; 5.9 Terminal & Dired (mod-terminal, mod-dired)
+  (general-define-key "C-x m" 'ghostel)
+
+  (leader-keys
+    "fd" '(dired :wk "dired")
+    "fj" '(dired-jump :wk "dired jump")
+    "fD" '(fd-dired :wk "fd dired"))
+
+  (general-define-key
+   :keymaps 'dired-mode-map
+   :states 'normal
+   "h" 'dired-up-directory
+   "l" 'dired-find-file
+   "q" 'kill-current-buffer
+   "TAB" 'dired-subtree-toggle)
+
+  ;; 5.10 Reading & AI (mod-reading, mod-ai)
+  (local-leader-keys
+    :keymaps 'org-noter-doc-mode-map
+    "i" 'org-noter-insert-note)
+
+  (leader-keys
+    "a"  '(:ignore t :wk "AI")
+    "ac" '(gptel :wk "chat")
+    "as" '(gptel-send :wk "send"))
+
+  (general-define-key
+   :keymaps 'gptel-mode-map
+   "C-c C-f" #'gptel-agent-insert-file-ref
+   "C-c C-a" #'gptel-agent-insert-skill)
+
+  (provide 'local-overrides)
+#+end_src

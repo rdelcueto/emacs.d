@@ -1,0 +1,13 @@
+#+TITLE: Clojure Language Layer
+#+PROPERTY: header-args:emacs-lisp :mkdirp yes :results silent
+
+* Clojure (=lisp/lang-clojure.el=)
+
+#+begin_src emacs-lisp :tangle lisp/lang-clojure.el
+  ;;; lang-clojure.el --- Clojure and CIDER -*- lexical-binding: t -*-
+
+  (use-package cider
+    :defer t)
+
+  (provide 'lang-clojure)
+#+end_src
