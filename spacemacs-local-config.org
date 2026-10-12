@@ -1,0 +1,1025 @@
+#+TITLE: Spacemacs-Style Local Configuration Template
+#+PROPERTY: header-args:emacs-lisp :mkdirp yes :results silent
+
+* Instructions
+Copy or symlink this file to =local-config.org= to customize your local machine configuration
+with a comprehensive, mnemonic Spacemacs Evil keybinding architecture.
+=local-config.org= is consumed by =README.org= and is not tracked by Git, allowing
+host-specific layer selections, paths, and secrets.
+
+Key architectural benefits of this Spacemacs configuration:
+1. *True Modal & Mnemonic Design*: Follows the official Spacemacs conventions (~SPC~ global leader, ~,~ and ~SPC m~ major mode leader).
+2. *Evil-First Integration*: Preserves Vim standards (~C-u~ for scroll, ~C-g~ for quick normal state return, ~s~ for evil-surround).
+3. *Dual Major-Mode Access*: All major-mode bindings are registered concurrently to both ~,~ and ~SPC m~ for seamless muscle memory.
+4. *Window & Buffer Ergonomics*: Integrates full Spacemacs window operations (~SPC w /~, ~SPC w -~, ~SPC w m~, ~SPC w u/U~), and alternate buffer toggling (~SPC TAB~).
+
+* Key-bindings
+** Architectural Principles & Evil Integration
+1. *Dual Major-Mode Access (~SPC m~ and ~,~)*:
+   - In Vim, ~,~ reverses character searches (~f~/~t~). In Spacemacs, ~,~ is the *major-mode local leader* (Section 9 of Spacemacs documentation).
+   - In this configuration, all major-mode bindings are registered concurrently under both ~,~ and ~SPC m~ via =spacemacs/set-leader-keys-for-major-mode=.
+2. *Evil-First Preservation*:
+   - ~C-u~ remains dedicated to Evil scrolling up (=evil-want-C-u-scroll t=).
+   - Universal argument is mapped to ~SPC u~.
+   - Fast escape from =insert= state to =normal= state is provided via ~C-g~.
+   - Visual surround operates on ~s~ via =evil-surround=.
+3. *Window Ergonomics (=evil-window-map=)*:
+   - Splits: ~SPC w /~ or ~SPC w v~ (vertical), ~SPC w -~ or ~SPC w s~ (horizontal).
+   - Navigation: ~SPC w h/j/k/l~.
+   - Manipulation: ~SPC w H/J/K/L~ (move window), ~SPC w d~ (delete window), ~SPC w m~ (maximize / delete others), ~SPC w =~ (balance).
+   - Layout History: =winner-mode= enabled for ~SPC w u~ (undo) and ~SPC w U~ (redo).
+4. *Buffer & File Ergonomics*:
+   - ~SPC TAB~ toggles between current and last active buffer (=spacemacs/alternate-buffer=).
+   - ~SPC f y y~ / ~f y d~ / ~f y n~ copies full file path, directory, or file name.
+   - ~SPC f e d~ opens this literate configuration, and ~SPC f e R~ tangles and reloads it.
+
+** Global Leader (~SPC~)
+
+*** Top-Level & System Actions
+| Key Binding | Target Command | Description |
+|-------------+----------------+-------------|
+| ~SPC SPC~   | ~execute-extended-command~ | M-x prompt |
+| ~SPC TAB~   | ~spacemacs/alternate-buffer~ | Switch to alternate / last buffer |
+| ~SPC u~     | ~universal-argument~ | Universal prefix argument |
+| ~SPC .~     | ~embark-act~ | Contextual Embark actions |
+| ~SPC '~     | ~ghostel~ | Pop shell / default terminal emulator |
+| ~SPC !~     | ~shell-command~ | Shell command runner |
+| ~SPC /~     | ~consult-ripgrep~ | Project search via Ripgrep |
+| ~SPC *~     | ~consult-line~ | Search line in buffer |
+
+*** Buffers (~SPC b~)
+| Key Binding | Target Command | Description |
+|-------------+----------------+-------------|
+| ~SPC b b~   | ~consult-buffer~ | Switch buffer / recent file |
+| ~SPC b d~   | ~kill-current-buffer~ | Kill buffer |
+| ~SPC b k~   | ~kill-current-buffer~ | Kill buffer |
+| ~SPC b n~   | ~next-buffer~ | Next buffer |
+| ~SPC b p~   | ~previous-buffer~ | Previous buffer |
+| ~SPC b R~   | ~revert-buffer~ | Revert buffer from disk |
+| ~SPC b s~   | ~scratch-buffer~ | Switch to *scratch* |
+| ~SPC b m~   | ~view-echo-area-messages~ | Switch to *Messages* |
+| ~SPC b w~   | ~read-only-mode~ | Toggle writable / read-only |
+| ~SPC b Y~   | ~spacemacs/copy-whole-buffer-to-clipboard~ | Copy entire buffer to kill ring |
+| ~SPC b B~   | ~bufler~ | Bufler workspace group view |
+| ~SPC b l~   | ~bufler-list~ | Bufler buffer list |
+| ~SPC b P c~ | ~popper-cycle~ | Cycle popups |
+| ~SPC b P t~ | ~popper-toggle-latest~ | Toggle latest popup |
+| ~SPC b P k~ | ~popper-kill-latest-popup~ | Kill latest popup |
+
+*** Windows (~SPC w~)
+| Key Binding | Target Command | Description |
+|-------------+----------------+-------------|
+| ~SPC w /~   | ~split-window-right~ | Vertical split |
+| ~SPC w v~   | ~split-window-right~ | Vertical split |
+| ~SPC w -~   | ~split-window-below~ | Horizontal split |
+| ~SPC w s~   | ~split-window-below~ | Horizontal split |
+| ~SPC w d~   | ~delete-window~ | Delete current window |
+| ~SPC w D~   | ~delete-other-windows~ | Delete other windows |
+| ~SPC w m~   | ~delete-other-windows~ | Maximize window |
+| ~SPC w =~   | ~balance-windows~ | Balance split dimensions |
+| ~SPC w w~   | ~other-window~ | Cycle focus to other window |
+| ~SPC w h~   | ~evil-window-left~ | Focus window left |
+| ~SPC w j~   | ~evil-window-down~ | Focus window down |
+| ~SPC w k~   | ~evil-window-up~ | Focus window up |
+| ~SPC w l~   | ~evil-window-right~ | Focus window right |
+| ~SPC w H~   | ~evil-window-move-far-left~ | Move window far left |
+| ~SPC w J~   | ~evil-window-move-very-bottom~ | Move window to bottom |
+| ~SPC w K~   | ~evil-window-move-very-top~ | Move window to top |
+| ~SPC w L~   | ~evil-window-move-far-right~ | Move window far right |
+| ~SPC w u~   | ~winner-undo~ | Undo window layout change |
+| ~SPC w U~   | ~winner-redo~ | Redo window layout change |
+| ~SPC w x~   | ~kill-buffer-and-window~ | Kill buffer and close window |
+
+*** Files (~SPC f~)
+| Key Binding | Target Command | Description |
+|-------------+----------------+-------------|
+| ~SPC f f~   | ~find-file~ | Open file |
+| ~SPC f r~   | ~consult-recent-file~ | Recent files |
+| ~SPC f s~   | ~save-buffer~ | Save file |
+| ~SPC f S~   | ~evil-write-all~ | Save all files |
+| ~SPC f j~   | ~dired-jump~ | Jump to file in Dired |
+| ~SPC f d~   | ~dired~ | Open directory in Dired |
+| ~SPC f D~   | ~fd-dired~ | Fast directory search |
+| ~SPC f b~   | ~consult-bookmark~ | File bookmarks |
+| ~SPC f z~   | ~fzf-find-file~ | Fuzzy find file |
+| ~SPC f y y~ | ~spacemacs/copy-file-path~ | Copy absolute file path |
+| ~SPC f y d~ | ~spacemacs/copy-directory-path~ | Copy directory path |
+| ~SPC f y n~ | ~spacemacs/copy-file-name~ | Copy file name |
+| ~SPC f e d~ | ~find-file (local-config.org)~ | Open local literate configuration |
+| ~SPC f e R~ | ~config-tangle-and-reload~ | Tangle and reload configuration |
+| ~SPC f e i~ | ~find-file (init.el)~ | Open init.el |
+| ~SPC f e I~ | ~find-file (early-init.el)~ | Open early-init.el |
+
+*** Projects (~SPC p~)
+| Key Binding | Target Command | Description |
+|-------------+----------------+-------------|
+| ~SPC p p~   | ~project-switch-project~ | Switch project |
+| ~SPC p f~   | ~project-find-file~ | Find file in project |
+| ~SPC p b~   | ~project-switch-to-buffer~ | Switch to project buffer |
+| ~SPC p d~   | ~project-dired~ | Open project root in Dired |
+| ~SPC p k~   | ~project-kill-buffers~ | Kill project buffers |
+| ~SPC p c~   | ~project-compile~ | Compile project |
+| ~SPC p /~   | ~consult-ripgrep~ | Ripgrep inside project |
+| ~SPC p '~   | ~ghostel-project~ | Terminal in project root |
+| ~SPC p !~   | ~project-shell-command~ | Shell command in project |
+
+*** Search (~SPC s~) & Jump (~SPC j~)
+| Key Binding | Target Command | Description |
+|-------------+----------------+-------------|
+| ~SPC s s~   | ~consult-ripgrep~ | Consult Ripgrep in project |
+| ~SPC s r~   | ~consult-ripgrep~ | Consult Ripgrep |
+| ~SPC s g~   | ~consult-grep~ | Consult Grep |
+| ~SPC s f~   | ~consult-find~ | Consult Find |
+| ~SPC s l~   | ~consult-line~ | Consult search line in buffer |
+| ~SPC s b~   | ~consult-line~ | Consult search buffer line |
+| ~SPC s i~   | ~consult-imenu~ | Consult Imenu outline |
+| ~SPC s y~   | ~consult-yank-from-kill-ring~ | Consult kill ring |
+| ~SPC s a~   | ~affe-grep~ | Affe Grep |
+| ~SPC s w~   | ~affe-find~ | Affe Find |
+| ~SPC s d~   | ~deadgrep~ | Deadgrep search |
+| ~SPC s z~   | ~fzf~ | Fzf search |
+| ~SPC j j~   | ~avy-goto-char-timer~ | Avy jump char timer |
+| ~SPC j w~   | ~avy-goto-word-1~ | Avy jump word |
+| ~SPC j l~   | ~avy-goto-line~ | Avy jump line |
+| ~SPC j b~   | ~avy-pop-mark~ | Avy jump back |
+| ~SPC j i~   | ~consult-imenu~ | Jump Imenu symbol |
+
+*** Version Control (~SPC g~) (=mod-git=)
+| Key Binding | Target Command | Description |
+|-------------+----------------+-------------|
+| ~SPC g s~   | ~magit-status~ | Magit status (canonical Spacemacs) |
+| ~SPC g b~   | ~magit-blame-addition~ | Magit blame |
+| ~SPC g c~   | ~magit-commit~ | Magit commit |
+| ~SPC g l~   | ~magit-log-current~ | Magit log current branch |
+| ~SPC g p~   | ~magit-push~ | Magit push |
+| ~SPC g B~   | ~magit-branch~ | Magit branch |
+| ~SPC g d~   | ~magit-diff-dwim~ | Magit diff |
+| ~SPC g z~   | ~ztree-diff~ | Ztree directory diff |
+| ~SPC g [~   | ~diff-hl-previous-hunk~ | Previous diff hunk |
+| ~SPC g ]~   | ~diff-hl-next-hunk~ | Next diff hunk |
+| ~SPC g r~   | ~diff-hl-revert-hunk~ | Revert diff hunk at point |
+| ~SPC g S~   | ~diff-hl-stage-current-hunk~ | Stage diff hunk |
+| ~SPC g D~   | ~diff-hl-diff-goto-hunk~ | Goto diff hunk |
+
+*** Toggles (~SPC t~) & Quit (~SPC q~)
+| Key Binding | Target Command | Description |
+|-------------+----------------+-------------|
+| ~SPC t n~   | ~display-line-numbers-mode~ | Toggle line numbers |
+| ~SPC t l~   | ~toggle-truncate-lines~ | Toggle line truncation |
+| ~SPC t L~   | ~visual-line-mode~ | Toggle visual line wrap |
+| ~SPC t w~   | ~whitespace-mode~ | Toggle whitespace visibility |
+| ~SPC t t~   | ~consult-theme~ | Select theme |
+| ~SPC t T~   | ~modus-themes-toggle~ | Toggle light / dark theme |
+| ~SPC t p~   | ~popper-toggle-latest~ | Toggle latest popup |
+| ~SPC t r~   | ~read-only-mode~ | Toggle read-only |
+| ~SPC t i~   | ~tempel-insert~ | Insert template snippet |
+| ~SPC q q~   | ~save-buffers-kill-emacs~ | Quit Emacs (prompt save) |
+| ~SPC q Q~   | ~kill-emacs~ | Force quit Emacs |
+| ~SPC q f~   | ~delete-frame~ | Kill current frame |
+| ~SPC q r~   | ~restart-emacs~ | Restart Emacs |
+
+*** Applications & AI (~SPC a~), Notes (~SPC n~), Insert (~SPC i~)
+| Key Binding | Target Command | Description |
+|-------------+----------------+-------------|
+| ~SPC a t~   | ~ghostel~ | Open Ghostel terminal |
+| ~SPC a d~   | ~dired~ | Open Dired |
+| ~SPC a b~   | ~calibredb~ | Open Calibre eBook library |
+| ~SPC a o a~ | ~org-agenda~ | Org Agenda |
+| ~SPC a o c~ | ~org-capture~ | Org Capture |
+| ~SPC a o j j~ | ~denote-journal-new-entry~ | New journal entry |
+| ~SPC a o j e~ | ~denote-journal-new-or-existing-entry~ | Find or create journal entry |
+| ~SPC a o j l~ | ~denote-journal-link-or-create-entry~ | Link journal entry |
+| ~SPC a i c~ / ~SPC a c~ | ~gptel~ | Open GPTel AI chat buffer |
+| ~SPC a i s~ / ~SPC a s~ | ~gptel-send~ | Send selection / prompt to LLM |
+| ~SPC a i m~ / ~SPC a m~ | ~gptel-menu~ | Open GPTel transient menu |
+| ~SPC n n~   | ~consult-notes~ | Consult search notes |
+| ~SPC n d~   | ~denote~ | Create new Denote note |
+| ~SPC n r~   | ~denote-rename-file~ | Rename note file |
+| ~SPC n l~   | ~denote-link~ | Link note |
+| ~SPC n b~   | ~denote-backlinks~ | View note backlinks |
+| ~SPC n f~   | ~denote-sort-dired~ | View notes directory in Dired |
+| ~SPC n t~   | ~org-transclusion-mode~ | Toggle Org transclusion |
+| ~SPC n R~   | ~narrow-to-region~ | Narrow to region |
+| ~SPC n w~   | ~widen~ | Widen buffer |
+| ~SPC n j j/e/l~ | ~denote-journal-new-entry/...~ | Journal shortcuts |
+| ~SPC i s/t/i~ | ~tempel-insert~ | Insert Tempel template snippet |
+
+** Major-Mode Leader (~,~ and ~SPC m~)
+
+*** Eglot LSP Client (=mod-lsp=)
+| Key Binding | Target Command | Description |
+|-------------+----------------+-------------|
+| ~, = =~ / ~, = b~ | ~eglot-format-buffer~ | Format entire buffer |
+| ~, = r~     | ~eglot-format~ | Format active region |
+| ~, a a~     | ~eglot-code-actions~ | Execute code action at point |
+| ~, a q~     | ~eglot-code-action-quickfix~ | Execute quickfix |
+| ~, r r~     | ~eglot-rename~ | Rename symbol across workspace |
+| ~, h h~     | ~eldoc~ | Show documentation / type signature |
+| ~, g d~ / ~, g g~ | ~xref-find-definitions~ | Goto definition |
+| ~, g D~     | ~xref-find-definitions-other-window~ | Goto definition in other window |
+| ~, g r~     | ~xref-find-references~ | Find references |
+| ~, g i~     | ~eglot-find-implementation~ | Goto implementation |
+| ~, g t~     | ~eglot-find-typeDefinition~ | Goto type definition |
+| ~, g b~     | ~xref-go-back~ | Jump back |
+| ~, b s~     | ~eglot-shutdown~ | Shutdown LSP server |
+| ~, b r~     | ~eglot-reconnect~ | Reconnect / restart LSP server |
+
+*** Citre Tags (=mod-citre=)
+| Key Binding | Target Command | Description |
+|-------------+----------------+-------------|
+| ~, g d~ / ~, c j~ | ~citre-jump~ | Jump to tag definition |
+| ~, g r~ / ~, c r~ | ~citre-jump-to-reference~ | Find tag references |
+| ~, g b~ / ~, c J~ | ~citre-jump-back~ | Jump back from tag |
+| ~, g p~ / ~, c p~ | ~citre-peek~ | Peek tag definition |
+| ~, g u~ / ~, c u~ | ~citre-update-this-tags-file~ | Update active tags file |
+
+*** Rust (=lang-rust=)
+| Key Binding | Target Command | Description |
+|-------------+----------------+-------------|
+| ~, c c~ / ~, c~ | ~rustic-cargo-build~ | Cargo build project |
+| ~, c x~ / ~, r~ | ~rustic-cargo-run~ | Cargo run default binary |
+| ~, c v~     | ~rustic-cargo-check~ | Cargo check |
+| ~, c l~     | ~rustic-cargo-clippy~ | Cargo clippy linter |
+| ~, c C~     | ~rustic-cargo-clean~ | Cargo clean build artifacts |
+| ~, c .~     | ~rustic-cargo-run~ | Rerun binary with previous args |
+| ~, t a~ / ~, t~ | ~rustic-cargo-test~ | Run all Cargo tests |
+| ~, t t~     | ~rustic-cargo-current-test~ | Run test at point |
+| ~, = =~ / ~, = b~ / ~, f~ | ~rustic-cargo-fmt~ | Reformat buffer with rustfmt |
+| ~, b r~     | ~rustic-analyzer-restart~ | Reload rust-analyzer workspace |
+
+*** Clojure (=lang-clojure=)
+| Key Binding | Target Command | Description |
+|-------------+----------------+-------------|
+| ~, s i~ / ~, s j j~ / ~, j~ | ~cider-jack-in~ | Jack in to Clojure REPL |
+| ~, s c j~   | ~cider-connect-clj~ | Connect to remote REPL |
+| ~, s b~ / ~, e b~ | ~cider-eval-buffer~ | Send and evaluate buffer in REPL |
+| ~, s e~ / ~, e e~ | ~cider-eval-last-sexp~ | Evaluate last s-expression |
+| ~, s f~ / ~, e f~ / ~, e~ | ~cider-eval-defun-at-point~ | Evaluate defun at point |
+| ~, s r~ / ~, e r~ | ~cider-eval-region~ | Evaluate active region |
+| ~, s a~ / ~, s s~ | ~cider-switch-to-repl-buffer~ | Switch focus to REPL buffer |
+| ~, s q q~   | ~cider-quit~ | Quit CIDER REPL |
+| ~, s q r~   | ~cider-restart~ | Restart CIDER REPL |
+| ~, t a~     | ~cider-test-run-ns-tests~ | Run all namespace tests |
+| ~, t t~     | ~cider-test-run-test~ | Run test at point |
+| ~, = =~     | ~cider-format-buffer~ | Reformat Clojure buffer |
+| ~, h h~     | ~cider-doc~ | View Clojure documentation |
+
+*** Python (=lang-python=)
+| Key Binding | Target Command | Description |
+|-------------+----------------+-------------|
+| ~, s i~     | ~run-python~ | Start or switch to Python REPL |
+| ~, s b~     | ~python-shell-send-buffer~ | Send buffer to Python shell |
+| ~, s f~     | ~python-shell-send-defun~ | Send function to Python shell |
+| ~, s r~     | ~python-shell-send-region~ | Send region to Python shell |
+| ~, s s~ / ~, s l~ | ~python-shell-send-statement~ | Send statement / line to REPL |
+| ~, c c~     | ~python-shell-send-buffer~ | Execute buffer in Python shell |
+| ~, = =~ / ~, = b~ | ~eglot-format-buffer~ | Reformat buffer via LSP |
+| ~, h h~     | ~eldoc~ | Describe symbol at point |
+
+*** Racket (=lang-racket=)
+| Key Binding | Target Command | Description |
+|-------------+----------------+-------------|
+| ~, s i~ / ~, s s~ / ~, r~ | ~racket-run-and-switch-to-repl~ | Run file and switch to Racket REPL |
+| ~, s b~     | ~racket-send-buffer~ | Send buffer to REPL |
+| ~, s e~ / ~, e e~ / ~, e~ | ~racket-eval-last-sexp~ | Evaluate last s-expression |
+| ~, s f~ / ~, e f~ | ~racket-eval-defun~ | Evaluate defun at point |
+| ~, s r~ / ~, e r~ | ~racket-eval-region~ | Evaluate region |
+| ~, h h~     | ~racket-describe~ | Describe symbol at point |
+| ~, g g~     | ~racket-xp-describe~ | Describe / xref definition |
+| ~, t b~     | ~racket-test~ | Run Racket tests |
+
+*** Structural Lisp Editing (=lang-lispy=)
+| Key Binding | Target Command | Description |
+|-------------+----------------+-------------|
+| ~TAB~       | ~indent-for-tab-command~ | Indent sexp / line rigidly |
+| ~, k s~     | ~lispyville-slurp~ | Slurp next sexp forward |
+| ~, k b~     | ~lispyville-barf~ | Barf last sexp forward |
+
+*** C / C++ / CUDA (=lang-c-cpp=)
+| Key Binding | Target Command | Description |
+|-------------+----------------+-------------|
+| ~, g a~     | ~ff-find-other-file~ | Toggle between matching .h and .cpp |
+| ~, g A~     | ~ff-find-other-file-other-window~ | Open matching header in other window |
+| ~, c c~     | ~compile~ | Invoke compile command |
+| ~, = =~ / ~, = b~ | ~eglot-format-buffer~ | Reformat buffer via LSP |
+
+*** Org-Mode (=mod-org=)
+| Key Binding | Target Command | Description |
+|-------------+----------------+-------------|
+| ~, '~       | ~org-edit-special~ | Edit code block / table in special buffer |
+| ~, c~       | ~org-ctrl-c-ctrl-c~ | Confirm / evaluate element at point |
+| ~, a~       | ~org-agenda~ | Open Org Agenda dispatcher |
+| ~, t~       | ~org-todo~ | Cycle TODO state |
+| ~, d d~     | ~org-deadline~ | Set task deadline |
+| ~, d s~     | ~org-schedule~ | Set task schedule date |
+| ~, e~       | ~org-export-dispatch~ | Open Org Export dispatcher |
+| ~, i h~     | ~org-insert-heading~ | Insert heading |
+| ~, i s~     | ~org-insert-subheading~ | Insert subheading |
+| ~, i l~     | ~org-insert-link~ | Insert hyperlink |
+| ~, i i~     | ~org-insert-item~ | Insert list item |
+| ~, i t~     | ~org-set-tags-command~ | Set heading tags |
+| ~, i p~     | ~org-set-property~ | Set heading property |
+| ~, i s~     | ~org-insert-structure-template~ | Insert source block template |
+| ~, s a~     | ~org-archive-subtree~ | Archive current subtree |
+| ~, s r~     | ~org-refile~ | Refile subtree |
+| ~, s n~     | ~org-narrow-to-subtree~ | Narrow buffer to subtree |
+| ~, s w~     | ~widen~ | Widen narrowed buffer |
+| ~, b t~     | ~org-babel-tangle~ | Tangle code blocks in file |
+| ~, b b~     | ~org-babel-execute-buffer~ | Execute all code blocks in buffer |
+| ~, b e~     | ~org-babel-execute-maybe~ | Execute code block at point |
+| ~, T l~     | ~org-latex-preview~ | Toggle LaTeX fragment preview |
+| ~, T m~     | ~org-modern-mode~ | Toggle Org Modern aesthetics |
+| ~, u u~     | ~org-transclusion-mode~ | Toggle Org Transclusion mode |
+| ~, u a~     | ~org-transclusion-add~ | Add transclusion block at point |
+
+*** Org Source Editing Mode (=org-src-mode=)
+| Key Binding | Target Command | Description |
+|-------------+----------------+-------------|
+| ~, '~ / ~, c~ | ~org-edit-src-exit~ | Save edits and exit source buffer |
+| ~, k~ / ~, a~ | ~org-edit-src-abort~ | Discard edits and abort |
+
+*** Reading: PDF Tools & Org-noter (=mod-reading=)
+| Key Binding | Target Command | Description |
+|-------------+----------------+-------------|
+| ~, f w~     | ~pdf-view-fit-width-to-window~ | Fit PDF page width to window |
+| ~, f h~     | ~pdf-view-fit-height-to-window~ | Fit PDF page height to window |
+| ~, f p~     | ~pdf-view-fit-page-to-window~ | Fit entire PDF page to window |
+| ~, s~       | ~pdf-occur~ | Search word occurrences across PDF |
+| ~, a l~     | ~pdf-annot-list-annotations~ | List PDF annotations |
+| ~, a h~     | ~pdf-annot-add-highlight-markup-annotation~ | Highlight selected text |
+| ~, a t~     | ~pdf-annot-add-text-annotation~ | Insert text annotation note |
+| ~, a D~     | ~pdf-annot-delete~ | Delete annotation |
+| ~, i~ (Org-Noter) | ~org-noter-insert-note~ | Insert synchronized note |
+| ~, q~ (Org-Noter) | ~org-noter-kill-session~ | Close synchronized noter session |
+
+*** Dired File Management (=mod-dired=)
+| Key Binding | Target Command | Description |
+|-------------+----------------+-------------|
+| ~h~         | ~dired-up-directory~ | Move up to parent directory |
+| ~l~         | ~dired-find-file~ | Open file or enter directory |
+| ~q~         | ~kill-current-buffer~ | Close Dired buffer |
+| ~TAB~       | ~dired-subtree-toggle~ | Expand / collapse directory tree |
+| ~.~         | ~embark-act~ | Contextual Embark actions on file |
+
+*** AI: GPTel (=mod-ai=)
+| Key Binding | Target Command | Description |
+|-------------+----------------+-------------|
+| ~, c~ / ~, s~ | ~gptel-send~ | Send prompt or region to LLM backend |
+| ~, m~       | ~gptel-menu~ | Open GPTel transient parameters menu |
+| ~C-c C-f~   | ~gptel-agent-insert-file-ref~ | Insert file reference anchor |
+| ~C-c C-a~   | ~gptel-agent-insert-skill~ | Insert skill prompt |
+
+* Pluggable Feature Modules
+All feature modules are opt-in. Comment out any module below to prevent loading:
+
+#+begin_src emacs-lisp :tangle init.el
+  ;; 6. Pluggable Feature Modules (Host Selection)
+  (defvar active-modules
+    '(mod-git          ; Magit, Diff-hl, Ediff, Ztree
+      mod-treesit      ; Treesit-env
+      mod-lsp          ; Eglot
+      mod-completion   ; Corfu, Cape, Tempel
+      mod-citre        ; Citre
+      lang-python      ; Python, IPython
+      lang-rust        ; Rustic, Cargo
+      lang-c-cpp       ; C/C++, CUDA
+      lang-clojure     ; Cider
+      lang-racket      ; Racket-mode
+      lang-lispy       ; Lispy, Lispyville
+      mod-org          ; Org-mode, Org-modern, Agenda, Transclusion
+      mod-notes        ; Denote, Journal, Consult-notes
+      mod-terminal     ; Ghostel
+      mod-dired        ; Dired, Dired-subtree, fd-dired
+      mod-reading      ; PDF/EPUB, Calibre, Org-noter, Asciidoc
+      mod-ai)          ; LLMs (GPTel), MCP
+    "List of active feature modules to load on this host.")
+
+  (defvaralias 'rdelcueto/active-modules 'active-modules)
+
+  (dolist (mod active-modules)
+    (require mod nil t))
+
+  ;; 7. Host & Environment Overrides
+  (require 'local-overrides nil t)
+  (let ((local-file (expand-file-name "local.el" user-emacs-directory)))
+    (when (file-exists-p local-file)
+      (load local-file nil t)))
+#+end_src
+
+* Active Layers
+Comment out any layer you do not wish to tangle on this machine:
+
+#+INCLUDE: "layers/git.org"
+#+INCLUDE: "layers/ide-treesit.org"
+#+INCLUDE: "layers/ide-lsp.org"
+#+INCLUDE: "layers/ide-completion.org"
+#+INCLUDE: "layers/ide-citre.org"
+#+INCLUDE: "layers/lang-python.org"
+#+INCLUDE: "layers/lang-rust.org"
+#+INCLUDE: "layers/lang-c-cpp.org"
+#+INCLUDE: "layers/lang-clojure.org"
+#+INCLUDE: "layers/lang-racket.org"
+#+INCLUDE: "layers/lang-lispy.org"
+#+INCLUDE: "layers/org.org"
+#+INCLUDE: "layers/notes.org"
+#+INCLUDE: "layers/terminal.org"
+#+INCLUDE: "layers/dired.org"
+#+INCLUDE: "layers/reading.org"
+#+INCLUDE: "layers/ai.org"
+
+* Host UI & Environment Overrides (=lisp/local-overrides.el=)
+Machine-specific typography profiles, identities, paths, and user keybindings:
+
+#+begin_src emacs-lisp :tangle lisp/local-overrides.el
+  ;;; local-overrides.el --- Host-specific overrides -*- lexical-binding: t -*-
+
+  ;; ---------------------------------------------------------------------------
+  ;; 1. Machine Typography Profiles
+  ;; ---------------------------------------------------------------------------
+  (setq core-ui-host-profiles
+        '(("Erebus" . (:font-size 12.0
+                       :mono-font "Aporetic Sans Mono"
+                       :serif-font "Aporetic Serif"
+                       :symbol-font "JuliaMono Nerd Font"))
+          ("x201"   . (:font-size 12.0
+                       :mono-font "Aporetic Sans Mono"
+                       :serif-font "Aporetic Serif"
+                       :symbol-font "JuliaMono Nerd Font"))
+          (t        . (:font-size 12.0
+                       :mono-font "monospace"
+                       :serif-font "serif"
+                       :symbol-font nil))))
+
+  ;; Apply current host font to default-frame-alist
+  (when-let* ((profile (core-ui-current-profile))
+              (mono (plist-get profile :mono-font))
+              (size (plist-get profile :font-size)))
+    (setf (alist-get 'font default-frame-alist) (format "%s-%s" mono size)))
+
+  ;; ---------------------------------------------------------------------------
+  ;; 2. User UI Override Hooks
+  ;; ---------------------------------------------------------------------------
+  ;; (add-hook 'core-ui-graphic-frame-hook (lambda (frame) nil))
+  ;; (add-hook 'core-ui-terminal-frame-hook (lambda (frame) nil))
+
+  ;; ---------------------------------------------------------------------------
+  ;; 3. Identity & User Defaults
+  ;; ---------------------------------------------------------------------------
+  (setq user-full-name "Rodrigo Gonzalez del Cueto"
+        user-mail-address "rdelcueto@gmail.com")
+
+  ;; Backward-compatibility definer aliases
+  (defalias 'rdelcueto/leader-keys 'leader-keys)
+  (defalias 'rdelcueto/local-leader-keys 'local-leader-keys)
+
+  ;; ---------------------------------------------------------------------------
+  ;; 4. Paths & Service Overrides
+  ;; ---------------------------------------------------------------------------
+  (setq calibredb-root-dir "~/Documents/eLibrary/Calibre Library"
+        calibredb-db-dir (expand-file-name "metadata.db" calibredb-root-dir))
+
+  ;; ---------------------------------------------------------------------------
+  ;; 5. Spacemacs Leader & Evil Keybinding Architecture
+  ;; ---------------------------------------------------------------------------
+
+  ;; 5.0 Spacemacs Core Helpers & Ergonomics
+  ;; Enable winner-mode for Spacemacs window undo/redo (`SPC w u` / `SPC w U`)
+  (when (fboundp 'winner-mode)
+    (winner-mode 1))
+
+  ;; Spacemacs alternate buffer (`SPC TAB`)
+  (defun spacemacs/alternate-buffer ()
+    "Switch back and forth between current and last active buffer in the current window."
+    (interactive)
+    (switch-to-buffer (other-buffer (current-buffer) t)))
+  (defalias 'alternate-buffer #'spacemacs/alternate-buffer)
+
+  ;; Spacemacs file path copy helpers (`SPC f y ...`)
+  (defun spacemacs/copy-file-path ()
+    "Show and copy current buffer file path to the kill ring."
+    (interactive)
+    (if-let* ((file (or buffer-file-name (bound-and-true-p dired-directory))))
+        (progn
+          (kill-new (file-truename file))
+          (message "Copied file path: %s" (file-truename file)))
+      (message "No file associated with current buffer.")))
+
+  (defun spacemacs/copy-file-name ()
+    "Show and copy current file name to the kill ring."
+    (interactive)
+    (if-let* ((file buffer-file-name))
+        (let ((name (file-name-nondirectory file)))
+          (kill-new name)
+          (message "Copied file name: %s" name))
+      (message "No file associated with current buffer.")))
+
+  (defun spacemacs/copy-directory-path ()
+    "Show and copy current buffer directory path to the kill ring."
+    (interactive)
+    (let ((dir (or (and buffer-file-name (file-name-directory buffer-file-name))
+                   default-directory)))
+      (kill-new dir)
+      (message "Copied directory path: %s" dir)))
+
+  (defun spacemacs/copy-whole-buffer-to-clipboard ()
+    "Copy whole buffer to clipboard / kill ring (`SPC b Y`)."
+    (interactive)
+    (kill-new (buffer-substring-no-properties (point-min) (point-max)))
+    (message "Copied whole buffer to clipboard."))
+
+  ;; Spacemacs dual-leader binding helper: binds under both `,' and `SPC m'
+  (defmacro spacemacs/set-leader-keys-for-major-mode (mode-map &rest bindings)
+    "Register BINDINGS in MODE-MAP under both `local-leader-keys' (`,') and `SPC m'."
+    `(progn
+       (local-leader-keys :keymaps ,mode-map ,@bindings)
+       (general-define-key :states '(normal visual) :keymaps ,mode-map :prefix "SPC m" ,@bindings)))
+
+  ;; 5.1 Global Leader (`SPC`)
+  (leader-keys
+    ;; Top-level fast access
+    "SPC" '(execute-extended-command :wk "M-x")
+    "TAB" '(spacemacs/alternate-buffer :wk "alternate buffer")
+    "u"   '(universal-argument :wk "universal prefix")
+    "."   '(embark-act :wk "embark act")
+    "'"   '(ghostel :wk "pop shell/terminal")
+    "!"   '(shell-command :wk "shell command")
+    "/"   '(consult-ripgrep :wk "search project (rg)")
+    "*"   '(consult-line :wk "search line")
+
+    ;; -------------------------------------------------------------------------
+    ;; Buffers (`SPC b`)
+    ;; -------------------------------------------------------------------------
+    "b"   '(:ignore t :wk "buffers")
+    "bb"  '(consult-buffer :wk "switch buffer")
+    "bd"  '(kill-current-buffer :wk "kill buffer")
+    "bk"  '(kill-current-buffer :wk "kill buffer")
+    "bn"  '(next-buffer :wk "next buffer")
+    "bp"  '(previous-buffer :wk "previous buffer")
+    "bR"  '(revert-buffer :wk "revert buffer")
+    "bs"  '(scratch-buffer :wk "scratch buffer")
+    "bm"  '(view-echo-area-messages :wk "messages buffer")
+    "bw"  '(read-only-mode :wk "toggle read-only")
+    "bY"  '(spacemacs/copy-whole-buffer-to-clipboard :wk "copy whole buffer")
+    "bB"  '(bufler :wk "bufler group view")
+    "bl"  '(bufler-list :wk "bufler list")
+    ;; Popper popups under buffer prefix
+    "bP"  '(:ignore t :wk "popper popups")
+    "bPc" '(popper-cycle t :wk "cycle popups")
+    "bPt" '(popper-toggle-latest t :wk "toggle latest popup")
+    "bPk" '(popper-kill-latest-popup t :wk "kill latest popup")
+
+    ;; -------------------------------------------------------------------------
+    ;; Files (`SPC f`)
+    ;; -------------------------------------------------------------------------
+    "f"   '(:ignore t :wk "files")
+    "ff"  '(find-file :wk "find file")
+    "fr"  '(consult-recent-file :wk "recent files")
+    "fs"  '(save-buffer :wk "save file")
+    "fS"  '(evil-write-all :wk "save all files")
+    "fj"  '(dired-jump :wk "dired jump")
+    "fd"  '(dired :wk "open dired")
+    "fD"  '(fd-dired :wk "fd-dired")
+    "fb"  '(consult-bookmark :wk "bookmarks")
+    "fz"  '(fzf-find-file :wk "fzf file")
+    ;; Path yanking
+    "fy"  '(:ignore t :wk "yank path")
+    "fyy" '(spacemacs/copy-file-path :wk "copy file path")
+    "fyd" '(spacemacs/copy-directory-path :wk "copy directory path")
+    "fyn" '(spacemacs/copy-file-name :wk "copy file name")
+    ;; Emacs / Config files
+    "fe"  '(:ignore t :wk "emacs/config")
+    "fed" '((lambda () (interactive)
+              (find-file (expand-file-name "local-config.org" user-emacs-directory)))
+            :wk "open local config")
+    "feR" '(config-tangle-and-reload :wk "tangle & reload config")
+    "fei" '((lambda () (interactive)
+              (find-file (expand-file-name "init.el" user-emacs-directory)))
+            :wk "open init.el")
+    "feI" '((lambda () (interactive)
+              (find-file (expand-file-name "early-init.el" user-emacs-directory)))
+            :wk "open early-init.el")
+
+    ;; -------------------------------------------------------------------------
+    ;; Windows (`SPC w`) -> Delegates to evil-window-map
+    ;; -------------------------------------------------------------------------
+    "w"   '(:keymap evil-window-map :package evil :wk "windows")
+
+    ;; -------------------------------------------------------------------------
+    ;; Projects (`SPC p`)
+    ;; -------------------------------------------------------------------------
+    "p"   '(:keymap project-prefix-map :wk "projects")
+    "pp"  '(project-switch-project :wk "switch project")
+    "pf"  '(project-find-file :wk "find file in project")
+    "pb"  '(project-switch-to-buffer :wk "project buffer")
+    "pd"  '(project-dired :wk "project dired")
+    "pk"  '(project-kill-buffers :wk "kill project buffers")
+    "pc"  '(project-compile :wk "compile project")
+    "p/"  '(consult-ripgrep :wk "search project")
+    "p'"  '(ghostel-project :wk "terminal in project")
+    "p!"  '(project-shell-command :wk "shell cmd in project")
+
+    ;; -------------------------------------------------------------------------
+    ;; Search Suite (`SPC s`)
+    ;; -------------------------------------------------------------------------
+    "s"   '(:ignore t :wk "search")
+    "ss"  '(consult-ripgrep :wk "consult ripgrep")
+    "sr"  '(consult-ripgrep :wk "consult ripgrep")
+    "sg"  '(consult-grep :wk "consult grep")
+    "sf"  '(consult-find :wk "consult find")
+    "sl"  '(consult-line :wk "consult line")
+    "sb"  '(consult-line :wk "search buffer line")
+    "si"  '(consult-imenu :wk "consult imenu")
+    "sy"  '(consult-yank-from-kill-ring :wk "yank ring")
+    "sa"  '(affe-grep :wk "affe grep")
+    "sw"  '(affe-find :wk "affe find")
+    "sd"  '(deadgrep :wk "deadgrep")
+    "sz"  '(fzf :wk "fzf search")
+
+    ;; -------------------------------------------------------------------------
+    ;; Jump (`SPC j`)
+    ;; -------------------------------------------------------------------------
+    "j"   '(:ignore t :wk "jump")
+    "jj"  '(avy-goto-char-timer :wk "jump char")
+    "jw"  '(avy-goto-word-1 :wk "jump word")
+    "jl"  '(avy-goto-line :wk "jump line")
+    "jb"  '(avy-pop-mark :wk "jump back")
+    "ji"  '(consult-imenu :wk "jump imenu")
+
+    ;; -------------------------------------------------------------------------
+    ;; Version Control / Git (`SPC g`) (mod-git)
+    ;; -------------------------------------------------------------------------
+    "g"   '(:ignore t :wk "git / vc")
+    "gs"  '(magit-status :wk "magit status")
+    "gb"  '(magit-blame-addition :wk "magit blame")
+    "gc"  '(magit-commit :wk "magit commit")
+    "gl"  '(magit-log-current :wk "magit log")
+    "gp"  '(magit-push :wk "magit push")
+    "gB"  '(magit-branch :wk "magit branch")
+    "gd"  '(magit-diff-dwim :wk "magit diff")
+    "gz"  '(ztree-diff :wk "ztree diff")
+    ;; Hunk navigation & manipulation (diff-hl)
+    "g["  '(diff-hl-previous-hunk :wk "previous hunk")
+    "g]"  '(diff-hl-next-hunk :wk "next hunk")
+    "gr"  '(diff-hl-revert-hunk :wk "revert hunk")
+    "gS"  '(diff-hl-stage-current-hunk :wk "stage hunk")
+    "gD"  '(diff-hl-diff-goto-hunk :wk "goto hunk diff")
+
+    ;; -------------------------------------------------------------------------
+    ;; Toggles (`SPC t`)
+    ;; -------------------------------------------------------------------------
+    "t"   '(:ignore t :wk "toggles")
+    "tn"  '(display-line-numbers-mode :wk "line numbers")
+    "tl"  '(toggle-truncate-lines :wk "truncate lines")
+    "tL"  '(visual-line-mode :wk "visual lines")
+    "tw"  '(whitespace-mode :wk "whitespace mode")
+    "tt"  '(consult-theme :wk "consult theme")
+    "tT"  '(modus-themes-toggle :wk "toggle light/dark")
+    "tp"  '(popper-toggle-latest :wk "toggle popup")
+    "tr"  '(read-only-mode :wk "toggle read-only")
+    "ti"  '(tempel-insert :wk "insert template")
+
+    ;; -------------------------------------------------------------------------
+    ;; Quit (`SPC q`)
+    ;; -------------------------------------------------------------------------
+    "q"   '(:ignore t :wk "quit")
+    "qq"  '(save-buffers-kill-emacs :wk "quit emacs (prompt save)")
+    "qQ"  '(kill-emacs :wk "kill emacs (force)")
+    "qf"  '(delete-frame :wk "kill frame")
+    "qr"  '(restart-emacs :wk "restart emacs")
+
+    ;; -------------------------------------------------------------------------
+    ;; Applications & AI (`SPC a`)
+    ;; -------------------------------------------------------------------------
+    "a"   '(:ignore t :wk "applications / ai")
+    "at"  '(ghostel :wk "terminal (ghostel)")
+    "ad"  '(dired :wk "dired")
+    "ab"  '(calibredb :wk "calibre library")
+    ;; Org applications
+    "ao"  '(:ignore t :wk "org")
+    "aoa" '(org-agenda :wk "org agenda")
+    "aoc" '(org-capture :wk "org capture")
+    "aoj" '(:ignore t :wk "journal")
+    "aojj" '(denote-journal-new-entry :wk "new journal entry")
+    "aoje" '(denote-journal-new-or-existing-entry :wk "find journal entry")
+    "aojl" '(denote-journal-link-or-create-entry :wk "link journal entry")
+    ;; AI / LLM (mod-ai)
+    "ai"  '(:ignore t :wk "AI")
+    "aic" '(gptel :wk "chat")
+    "ais" '(gptel-send :wk "send")
+    "aim" '(gptel-menu :wk "menu")
+    ;; Fast aliases for AI
+    "ac"  '(gptel :wk "AI chat")
+    "as"  '(gptel-send :wk "AI send")
+    "am"  '(gptel-menu :wk "AI menu")
+
+    ;; -------------------------------------------------------------------------
+    ;; Notes & Transclusion (`SPC n`) (mod-notes, mod-org)
+    ;; -------------------------------------------------------------------------
+    "n"   '(:ignore t :wk "notes / narrowing")
+    "nn"  '(consult-notes :wk "consult notes")
+    "nd"  '(denote :wk "new denote note")
+    "nr"  '(denote-rename-file :wk "rename note")
+    "nl"  '(denote-link :wk "link note")
+    "nb"  '(denote-backlinks :wk "note backlinks")
+    "nf"  '(denote-sort-dired :wk "sort notes in dired")
+    "nt"  '(org-transclusion-mode :wk "toggle transclusion")
+    "nR"  '(narrow-to-region :wk "narrow to region")
+    "nw"  '(widen :wk "widen")
+    ;; Journal sub-prefix
+    "nj"  '(:ignore t :wk "journal")
+    "njj" '(denote-journal-new-entry :wk "new entry")
+    "nje" '(denote-journal-new-or-existing-entry :wk "find entry")
+    "njl" '(denote-journal-link-or-create-entry :wk "link entry")
+
+    ;; -------------------------------------------------------------------------
+    ;; Insert (`SPC i`) (mod-completion)
+    ;; -------------------------------------------------------------------------
+    "i"   '(:ignore t :wk "insert")
+    "is"  '(tempel-insert :wk "insert template/snippet")
+    "it"  '(tempel-insert :wk "insert template")
+    "ii"  '(tempel-insert :wk "insert template"))
+
+  ;; 5.2 Modal, Window & Completion Shortcuts (evil-window-map)
+  (general-define-key
+   :keymaps 'evil-window-map
+   "d" '(delete-window :wk "delete window")
+   "/" '(split-window-right :wk "split right")
+   "v" '(split-window-right :wk "split right")
+   "-" '(split-window-below :wk "split below")
+   "s" '(split-window-below :wk "split below")
+   "m" '(delete-other-windows :wk "maximize window")
+   "D" '(delete-other-windows :wk "delete other windows")
+   "=" '(balance-windows :wk "balance windows")
+   "u" '(winner-undo :wk "undo window config")
+   "U" '(winner-redo :wk "redo window config")
+   "x" '(kill-buffer-and-window :wk "kill buffer and window"))
+
+  ;; Vim-like fast escape to normal state
+  (general-define-key
+   :states 'insert
+   "C-g" 'evil-normal-state)
+
+  ;; Minibuffer & Completion navigation
+  (general-define-key
+   :keymaps 'vertico-map
+   "C-." 'embark-act)
+
+  (general-define-key
+   :keymaps 'corfu-map
+   "SPC" 'corfu-insert-separator)
+
+  (general-define-key
+   :keymaps 'tempel-map
+   "TAB" 'tempel-next)
+
+  (general-define-key
+   "M-p p" 'completion-at-point
+   "M-p d" 'cape-dabbrev
+   "M-p f" 'cape-file
+   "M-p +" 'tempel-complete)
+
+  ;; Terminal shortcut
+  (general-define-key "C-x m" 'ghostel)
+
+  ;; ---------------------------------------------------------------------------
+  ;; 5.3 Major-Mode Keybindings (Spacemacs `SPC m' and `,')
+  ;; ---------------------------------------------------------------------------
+
+  ;; Eglot LSP Client (mod-lsp)
+  (spacemacs/set-leader-keys-for-major-mode 'eglot-mode-map
+    "="  '(:ignore t :wk "format")
+    "==" '(eglot-format-buffer :wk "format buffer")
+    "=b" '(eglot-format-buffer :wk "format buffer")
+    "=r" '(eglot-format :wk "format region")
+    "a"  '(:ignore t :wk "actions")
+    "aa" '(eglot-code-actions :wk "code actions")
+    "aq" '(eglot-code-action-quickfix :wk "quickfix")
+    "r"  '(:ignore t :wk "refactor")
+    "rr" '(eglot-rename :wk "rename symbol")
+    "h"  '(:ignore t :wk "help / doc")
+    "hh" '(eldoc :wk "describe thing at point")
+    "g"  '(:ignore t :wk "goto")
+    "gd" '(xref-find-definitions :wk "goto definition")
+    "gg" '(xref-find-definitions :wk "goto definition")
+    "gD" '(xref-find-definitions-other-window :wk "definition other window")
+    "gr" '(xref-find-references :wk "goto references")
+    "gi" '(eglot-find-implementation :wk "goto implementation")
+    "gt" '(eglot-find-typeDefinition :wk "goto type definition")
+    "gb" '(xref-go-back :wk "jump back")
+    "b"  '(:ignore t :wk "backend / server")
+    "bs" '(eglot-shutdown :wk "shutdown server")
+    "br" '(eglot-reconnect :wk "reconnect server"))
+
+  ;; Citre Tags (mod-citre)
+  (spacemacs/set-leader-keys-for-major-mode 'prog-mode-map
+    "g"  '(:ignore t :wk "goto / tags")
+    "gd" '(citre-jump :wk "citre jump")
+    "gr" '(citre-jump-to-reference :wk "citre references")
+    "gb" '(citre-jump-back :wk "citre jump back")
+    "gp" '(citre-peek :wk "citre peek")
+    "gu" '(citre-update-this-tags-file :wk "citre update tags")
+    "c"  '(:ignore t :wk "citre tags")
+    "cj" '(citre-jump :wk "jump")
+    "cr" '(citre-jump-to-reference :wk "reference")
+    "cJ" '(citre-jump-back :wk "jump back")
+    "cp" '(citre-peek :wk "peek")
+    "cu" '(citre-update-this-tags-file :wk "update tags"))
+
+  ;; Rust (lang-rust)
+  (spacemacs/set-leader-keys-for-major-mode 'rustic-mode-map
+    "="  '(:ignore t :wk "format")
+    "==" '(rustic-cargo-fmt :wk "cargo fmt")
+    "=b" '(rustic-cargo-fmt :wk "cargo fmt buffer")
+    "c"  '(:ignore t :wk "cargo / compile")
+    "cc" '(rustic-cargo-build :wk "cargo build")
+    "cx" '(rustic-cargo-run :wk "cargo run")
+    "cv" '(rustic-cargo-check :wk "cargo check")
+    "cl" '(rustic-cargo-clippy :wk "cargo clippy")
+    "cC" '(rustic-cargo-clean :wk "cargo clean")
+    "c." '(rustic-cargo-run :wk "cargo rerun")
+    "t"  '(:ignore t :wk "test")
+    "ta" '(rustic-cargo-test :wk "test project")
+    "tt" '(rustic-cargo-current-test :wk "test current")
+    "b"  '(:ignore t :wk "backend")
+    "br" '(rustic-analyzer-restart :wk "restart rust-analyzer")
+    ;; Direct single-letter shortcuts
+    "c"  '(rustic-cargo-build :wk "cargo build")
+    "r"  '(rustic-cargo-run :wk "cargo run")
+    "t"  '(rustic-cargo-test :wk "cargo test")
+    "f"  '(rustic-cargo-fmt :wk "cargo fmt"))
+
+  ;; Clojure (lang-clojure)
+  (spacemacs/set-leader-keys-for-major-mode 'clojure-mode-map
+    "s"   '(:ignore t :wk "repl / send")
+    "si"  '(cider-jack-in :wk "cider jack-in")
+    "sjj" '(cider-jack-in :wk "cider jack-in")
+    "scj" '(cider-connect-clj :wk "cider connect")
+    "sb"  '(cider-eval-buffer :wk "eval buffer")
+    "se"  '(cider-eval-last-sexp :wk "eval last sexp")
+    "sf"  '(cider-eval-defun-at-point :wk "eval defun")
+    "sr"  '(cider-eval-region :wk "eval region")
+    "sa"  '(cider-switch-to-repl-buffer :wk "switch to repl")
+    "ss"  '(cider-switch-to-repl-buffer :wk "switch to repl")
+    "sqq" '(cider-quit :wk "quit cider")
+    "sqr" '(cider-restart :wk "restart cider")
+    "e"   '(:ignore t :wk "eval")
+    "ee"  '(cider-eval-last-sexp :wk "eval last sexp")
+    "ef"  '(cider-eval-defun-at-point :wk "eval defun")
+    "er"  '(cider-eval-region :wk "eval region")
+    "eb"  '(cider-eval-buffer :wk "eval buffer")
+    "t"   '(:ignore t :wk "test")
+    "ta"  '(cider-test-run-ns-tests :wk "run ns tests")
+    "tt"  '(cider-test-run-test :wk "run test at point")
+    "="   '(:ignore t :wk "format")
+    "=="  '(cider-format-buffer :wk "format buffer")
+    "h"   '(:ignore t :wk "help / doc")
+    "hh"  '(cider-doc :wk "cider doc")
+    ;; Direct shortcuts
+    "j"   '(cider-jack-in :wk "cider jack-in")
+    "e"   '(cider-eval-defun-at-point :wk "eval defun"))
+
+  ;; Python (lang-python)
+  (spacemacs/set-leader-keys-for-major-mode 'python-mode-map
+    "s"  '(:ignore t :wk "repl / send")
+    "si" '(run-python :wk "start / switch to repl")
+    "sb" '(python-shell-send-buffer :wk "send buffer")
+    "sf" '(python-shell-send-defun :wk "send defun")
+    "sr" '(python-shell-send-region :wk "send region")
+    "ss" '(python-shell-send-statement :wk "send statement")
+    "sl" '(python-shell-send-statement :wk "send statement/line")
+    "c"  '(:ignore t :wk "compile / execute")
+    "cc" '(python-shell-send-buffer :wk "execute buffer")
+    "="  '(:ignore t :wk "format")
+    "==" '(eglot-format-buffer :wk "format buffer")
+    "=b" '(eglot-format-buffer :wk "format buffer")
+    "h"  '(:ignore t :wk "help / doc")
+    "hh" '(eldoc :wk "doc at point"))
+
+  ;; Racket (lang-racket)
+  (spacemacs/set-leader-keys-for-major-mode 'racket-mode-map
+    "s"  '(:ignore t :wk "repl / send")
+    "si" '(racket-run-and-switch-to-repl :wk "run & switch to repl")
+    "ss" '(racket-run-and-switch-to-repl :wk "run & switch to repl")
+    "sb" '(racket-send-buffer :wk "send buffer")
+    "se" '(racket-eval-last-sexp :wk "eval last sexp")
+    "sf" '(racket-eval-defun :wk "eval defun")
+    "sr" '(racket-eval-region :wk "eval region")
+    "e"  '(:ignore t :wk "eval")
+    "ee" '(racket-eval-last-sexp :wk "eval last sexp")
+    "ef" '(racket-eval-defun :wk "eval defun")
+    "er" '(racket-eval-region :wk "eval region")
+    "h"  '(:ignore t :wk "help / doc")
+    "hh" '(racket-describe :wk "racket describe")
+    "g"  '(:ignore t :wk "goto")
+    "gg" '(racket-xp-describe :wk "describe / xref definition")
+    "t"  '(:ignore t :wk "test")
+    "tb" '(racket-test :wk "run tests")
+    ;; Direct shortcuts
+    "r"  '(racket-run-and-switch-to-repl :wk "run repl")
+    "e"  '(racket-eval-last-sexp :wk "eval"))
+
+  ;; Lispy (lang-lispy)
+  (general-define-key :keymaps 'lispy-mode-map "TAB" 'indent-for-tab-command)
+  (spacemacs/set-leader-keys-for-major-mode 'lispy-mode-map
+    "k"  '(:ignore t :wk "structural lisp")
+    "ks" '(lispyville-slurp :wk "slurp forward")
+    "kb" '(lispyville-barf :wk "barf forward"))
+
+  ;; C / C++ / CUDA (lang-c-cpp)
+  (dolist (c-map '(c-mode-map c++-mode-map cuda-mode-map))
+    (spacemacs/set-leader-keys-for-major-mode c-map
+      "g"  '(:ignore t :wk "goto")
+      "ga" '(ff-find-other-file :wk "toggle .h <-> .cpp")
+      "gA" '(ff-find-other-file-other-window :wk "other file other window")
+      "c"  '(:ignore t :wk "compile")
+      "cc" '(compile :wk "compile")
+      "="  '(:ignore t :wk "format")
+      "==" '(eglot-format-buffer :wk "format buffer")
+      "=b" '(eglot-format-buffer :wk "format buffer")))
+
+  ;; Org Mode (mod-org)
+  (spacemacs/set-leader-keys-for-major-mode 'org-mode-map
+    "'"  '(org-edit-special :wk "edit special src/table")
+    "c"  '(org-ctrl-c-ctrl-c :wk "confirm / ctrl-c-ctrl-c")
+    "a"  '(org-agenda :wk "org agenda")
+    "t"  '(org-todo :wk "todo state")
+    "d"  '(:ignore t :wk "dates / deadlines")
+    "dd" '(org-deadline :wk "deadline")
+    "ds" '(org-schedule :wk "schedule")
+    "e"  '(org-export-dispatch :wk "export dispatch")
+    ;; Insertion
+    "i"  '(:ignore t :wk "insert")
+    "ih" '(org-insert-heading :wk "heading")
+    "is" '(org-insert-subheading :wk "subheading")
+    "il" '(org-insert-link :wk "link")
+    "ii" '(org-insert-item :wk "item")
+    "it" '(org-set-tags-command :wk "set tags")
+    "ip" '(org-set-property :wk "set property")
+    "is" '(org-insert-structure-template :wk "structure template")
+    ;; Subtree
+    "s"  '(:ignore t :wk "subtree / tree")
+    "sa" '(org-archive-subtree :wk "archive subtree")
+    "sr" '(org-refile :wk "refile")
+    "sn" '(org-narrow-to-subtree :wk "narrow to subtree")
+    "sw" '(widen :wk "widen")
+    ;; Babel
+    "b"  '(:ignore t :wk "babel")
+    "bt" '(org-babel-tangle :wk "tangle")
+    "bb" '(org-babel-execute-buffer :wk "execute buffer")
+    "be" '(org-babel-execute-maybe :wk "execute block")
+    ;; Toggles
+    "T"  '(:ignore t :wk "toggles")
+    "Tl" '(org-latex-preview :wk "latex preview")
+    "Tm" '(org-modern-mode :wk "org-modern")
+    ;; Transclusion
+    "u"  '(:ignore t :wk "transclusion")
+    "uu" '(org-transclusion-mode :wk "toggle transclusion")
+    "ua" '(org-transclusion-add :wk "add transclusion"))
+
+  ;; Org Source Editing Mode (`org-src-mode')
+  (spacemacs/set-leader-keys-for-major-mode 'org-src-mode-map
+    "'" '(org-edit-src-exit :wk "save and exit")
+    "c" '(org-edit-src-exit :wk "save and exit")
+    "k" '(org-edit-src-abort :wk "abort")
+    "a" '(org-edit-src-abort :wk "abort"))
+
+  ;; Reading: PDF Tools & Org-noter (mod-reading)
+  (spacemacs/set-leader-keys-for-major-mode 'pdf-view-mode-map
+    "f"  '(:ignore t :wk "fit")
+    "fw" '(pdf-view-fit-width-to-window :wk "fit width")
+    "fh" '(pdf-view-fit-height-to-window :wk "fit height")
+    "fp" '(pdf-view-fit-page-to-window :wk "fit page")
+    "s"  '(pdf-occur :wk "search occur")
+    "a"  '(:ignore t :wk "annotations")
+    "al" '(pdf-annot-list-annotations :wk "list annotations")
+    "ah" '(pdf-annot-add-highlight-markup-annotation :wk "highlight")
+    "at" '(pdf-annot-add-text-annotation :wk "add text annotation")
+    "aD" '(pdf-annot-delete :wk "delete annotation"))
+
+  (spacemacs/set-leader-keys-for-major-mode 'org-noter-doc-mode-map
+    "i" '(org-noter-insert-note :wk "insert note")
+    "q" '(org-noter-kill-session :wk "kill session"))
+
+  ;; Dired (mod-dired)
+  (general-define-key
+   :keymaps 'dired-mode-map
+   :states 'normal
+   "h"   'dired-up-directory
+   "l"   'dired-find-file
+   "q"   'kill-current-buffer
+   "TAB" 'dired-subtree-toggle
+   "."   'embark-act)
+
+  ;; AI: GPTel (mod-ai)
+  (spacemacs/set-leader-keys-for-major-mode 'gptel-mode-map
+    "c" '(gptel-send :wk "send prompt")
+    "s" '(gptel-send :wk "send prompt")
+    "m" '(gptel-menu :wk "menu"))
+
+  (general-define-key
+   :keymaps 'gptel-mode-map
+   "C-c C-f" #'gptel-agent-insert-file-ref
+   "C-c C-a" #'gptel-agent-insert-skill)
+
+  (provide 'local-overrides)
+#+end_src

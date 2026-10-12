@@ -1,0 +1,28 @@
+#+TITLE: C/C++ and CUDA Language Layer
+#+PROPERTY: header-args:emacs-lisp :mkdirp yes :results silent
+
+* C / C++ / CUDA (=lisp/lang-c-cpp.el=)
+
+#+begin_src emacs-lisp :tangle lisp/lang-c-cpp.el
+  ;;; lang-c-cpp.el --- C, C++, and CUDA -*- lexical-binding: t -*-
+
+  (use-package c-mode
+    :ensure nil
+    :defer t
+    :mode (("\\.c\\'"   . c-mode)
+           ("\\.cpp\\'" . c++-mode)
+           ("\\.h\\'"   . c-mode)
+           ("\\.hpp\\'" . c++-mode))
+    :hook
+    (c-mode . eglot-ensure)
+    (c++-mode . eglot-ensure)
+    :config
+    (setq c-mode-indent-style 'linux
+          c-mode-indent-offset 4))
+
+  (use-package cuda-mode
+    :defer t
+    :mode "\\.cu\\'")
+
+  (provide 'lang-c-cpp)
+#+end_src

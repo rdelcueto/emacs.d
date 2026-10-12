@@ -1,0 +1,14 @@
+#+TITLE: Racket Language Layer
+#+PROPERTY: header-args:emacs-lisp :mkdirp yes :results silent
+
+* Racket (=lisp/lang-racket.el=)
+
+#+begin_src emacs-lisp :tangle lisp/lang-racket.el
+  ;;; lang-racket.el --- Racket Mode -*- lexical-binding: t -*-
+
+  (use-package racket-mode
+    :defer t
+    :hook (racket-mode . racket-xp-mode))
+
+  (provide 'lang-racket)
+#+end_src

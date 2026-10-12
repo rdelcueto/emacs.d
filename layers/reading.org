@@ -1,0 +1,40 @@
+#+TITLE: Reading & Document Layer
+#+PROPERTY: header-args:emacs-lisp :mkdirp yes :results silent
+
+* Document Readers (=lisp/mod-reading.el=)
+
+#+begin_src emacs-lisp :tangle lisp/mod-reading.el
+  ;;; mod-reading.el --- Document Readers and Formats -*- lexical-binding: t -*-
+
+  (use-package pdf-tools
+    :defer t
+    :mode ("\\.pdf\\'" . pdf-view-mode)
+    :config
+    (require 'pdf-outline)
+    (require 'pdf-occur)
+    (pdf-tools-install :no-query))
+
+  (use-package nov
+    :defer t
+    :mode ("\\.epub\\'" . nov-mode))
+
+  (use-package calibredb :defer t)
+
+  (use-package org-noter
+    :defer t
+    :config
+    (setq org-noter-notes-search-path '("~/Org/")
+          org-noter-default-notes-file-names '("literature-notes.org")
+          org-noter-always-create-frame nil))
+
+  (use-package asciidoc-mode
+    :ensure t
+    :defer t
+    :mode (("\\.adoc\\'" . asciidoc-mode)
+           ("\\.asciidoc\\'" . asciidoc-mode))
+    :config
+    (when (treesit-available-p)
+      (asciidoc-install-grammars)))
+
+  (provide 'mod-reading)
+#+end_src

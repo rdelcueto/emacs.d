@@ -1,0 +1,78 @@
+#+TITLE: Org Mode Layer
+#+PROPERTY: header-args:emacs-lisp :mkdirp yes :results silent
+
+* Org Mode and Ecosystem (=lisp/mod-org.el=)
+
+#+begin_src emacs-lisp :tangle lisp/mod-org.el
+  ;;; mod-org.el --- Org-mode and Ecosystem -*- lexical-binding: t -*-
+
+  (use-package org
+    :ensure nil
+    :defer t
+    :init
+    (setq org-directory "~/Org/agenda"
+          org-default-notes-file (concat org-directory "/notes.org")
+          org-auto-align-tags nil
+          org-tags-column 0
+          org-catch-invisible-edits 'show-and-error
+          org-hide-emphasis-markers t
+          org-src-fontify-natively t
+          org-highlight-latex-and-related '(native)
+          org-pretty-entities t
+          org-use-sub-superscripts nil
+          org-ellipsis "...")
+
+    ;; Agenda Configuration
+    (setq org-agenda-tags-column 0
+          org-agenda-block-separator ?─
+          org-agenda-time-grid '((daily today require-timed)
+                                 (800 1000 1200 1400 1600 1800 2000)
+                                 " ┄┄┄┄┄ " "┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄")
+          org-agenda-current-time-string "⭠ now ─────────────────────────────────────────────────")
+
+    (setq org-todo-keywords
+          '((sequence "TODO(t)" "SOMEDAY(s)" "|" "DONE(d)")
+            (sequence "TO-READ(r)" "READING(R)" "|" "HAVE-READ(d)")
+            (sequence "PROJ(p)" "|" "COMPLETED(c)")))
+
+    :config
+    (set-face-attribute 'org-ellipsis nil :inherit 'default :box nil)
+    (org-babel-do-load-languages
+     'org-babel-load-languages
+     '((emacs-lisp . t)
+       (python     . t)
+       (plantuml   . t)
+       (awk        . t))))
+
+  (use-package org-modern
+    :after org
+    :hook ((org-mode . org-modern-mode)
+           (org-agenda-finalize . org-modern-agenda)))
+
+  (use-package org-appear
+    :after org
+    :hook (org-mode . org-appear-mode))
+
+  (use-package org-transclusion
+    :after org)
+
+  ;; PlantUML Execution Setup
+  (setq org-plantuml-jar-path
+        (cl-find-if #'file-exists-p
+                    `(,(expand-file-name "~/bin/plantuml-gplv2-1.2026.8.jar")
+                      ,(expand-file-name "~/bin/plantuml.jar")
+                      "/usr/share/java/plantuml.jar"))
+        plantuml-default-exec-mode 'jar)
+
+  ;; Inline Image Settings
+  (setq org-startup-with-inline-images t   ; Display images when opening an org file
+        org-image-actual-width nil)         ; Respect #+ATTR_ORG: :width tags instead of raw pixel size
+
+  ;; Don't prompt for confirmation before executing babel blocks
+  (setq org-confirm-babel-evaluate nil)
+
+  ;; Automatic Redisplay Hook (The Jupyter Notebook Effect)
+  (add-hook 'org-babel-after-execute-hook #'org-redisplay-inline-images)
+
+  (provide 'mod-org)
+#+end_src

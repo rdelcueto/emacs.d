@@ -1,0 +1,24 @@
+#+TITLE: LSP Client Layer
+#+PROPERTY: header-args:emacs-lisp :mkdirp yes :results silent
+
+* Eglot LSP Client (=lisp/mod-lsp.el=)
+
+#+begin_src emacs-lisp :tangle lisp/mod-lsp.el
+  ;;; mod-lsp.el --- Eglot LSP Client -*- lexical-binding: t -*-
+
+  (use-package eglot
+    :ensure nil
+    :defer t
+    :custom
+    (eglot-send-changes-idle-time 0.1)
+    (eglot-autoshutdown t)
+    :config
+    (setq completion-category-overrides '((eglot (styles orderless)))))
+
+  (use-package eglot-booster
+    :disabled
+    :after eglot
+    :config (eglot-booster-mode))
+
+  (provide 'mod-lsp)
+#+end_src
